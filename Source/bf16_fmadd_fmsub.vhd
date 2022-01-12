@@ -103,6 +103,7 @@ begin
         variable alu_rm: std_logic_vector(15 downto 0) ;
         variable result_mult: std_logic_vector(15 downto 0) ;
         begin
+        
             exp_1 := to_integer(unsigned(in1(14 downto 7)));
             exp_2 := to_integer(unsigned(in2(14 downto 7)));
 
@@ -196,13 +197,13 @@ begin
             exc_flag := '1';
             -- handle zeros and denorms
             if ((exp_m = 0) and (exp_3 /= 0)) then
-                if (p1_out_funct5 = "00101") then
+                if (p1_out_funct5(1 downto 0) = "01") then
                     exc_res := not(p1_out_in3(15)) & p1_out_in3(14 downto 0);
                 else
                     exc_res := p1_out_in3;
                 end if;
             elsif ((exp_3 = 0) and (exp_m /= 0)) then
-                if (p1_out_funct5 = "00101") then
+                if (p1_out_funct5(1 downto 0) = "01") then
                     exc_res := not(p1_out_result_mult(15)) & p1_out_result_mult(14 downto 0);
                 else
                     exc_res := p1_out_result_mult;
@@ -211,9 +212,9 @@ begin
                 exc_res := (others => '0');
             
             -- handle cancellation (result = 0)
-            elsif ((p1_out_result_mult(14 downto 0) = p1_out_in3(14 downto 0)) and (p1_out_result_mult(15) /= p1_out_in3(15)) and (p1_out_funct5 = "00100")) then
+            elsif ((p1_out_result_mult(14 downto 0) = p1_out_in3(14 downto 0)) and (p1_out_result_mult(15) /= p1_out_in3(15)) and (p1_out_funct5(1 downto 0) = "00")) then
                 exc_res := (others => '0');
-            elsif ((p1_out_result_mult(14 downto 0) = p1_out_in3(14 downto 0)) and (p1_out_result_mult(15) = p1_out_in3(15)) and (p1_out_funct5 = "00101")) then
+            elsif ((p1_out_result_mult(14 downto 0) = p1_out_in3(14 downto 0)) and (p1_out_result_mult(15) = p1_out_in3(15)) and (p1_out_funct5(1 downto 0) = "01")) then
                 exc_res := (others => '0');
         
             -- handle NaN and infinity
@@ -270,9 +271,9 @@ begin
         variable s_r: std_logic;  -- result sign
         begin
             case p2_out_funct5 is 
-                when "00100" => -- add
+                when "00100"|"00000" => -- add
                     alu_r := std_logic_vector(signed(p2_out_alu_m) + signed(p2_out_alu_in3));
-                when "00101" => -- sub
+                when "00101"|"00001" => -- sub
                     alu_r := std_logic_vector(signed(p2_out_alu_m) - signed(p2_out_alu_in3));
                 when others =>
                     alu_r := (others => '0');
