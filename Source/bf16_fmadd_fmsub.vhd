@@ -294,24 +294,42 @@ begin
     end process stage_3;
 
     stage_4: process (p3_out_exp_r, p3_out_alu_r, p3_out_exc_res, p3_out_exc_flag, p3_out_s_r) is
-        variable count: integer range -7 to 1;
         variable p3_alu_r: std_logic_vector(9 downto 0) ;
         variable p3_exp_r: integer range -7 to 255 ;
         begin
             -- Normalize mantissa and adjust exponent
-            count := 1;
             p3_alu_r := p3_out_alu_r;
             p3_exp_r := p3_out_exp_r;
-            while ((p3_alu_r(8) /= '1') and (count > -7)) loop
+
+            if (p3_alu_r(8) = '1') then
+                -- overflow
+                p3_exp_r := p3_exp_r + 1;
+                p3_alu_r := std_logic_vector(shift_right(unsigned(p3_alu_r), 1));
+            elsif (p3_alu_r(7) = '1') then
+                -- do not shift
+                p3_alu_r := std_logic_vector(shift_left(unsigned(p3_alu_r), 0));
+            elsif (p3_alu_r(6) = '1') then
+                p3_exp_r := p3_exp_r - 1;
                 p3_alu_r := std_logic_vector(shift_left(unsigned(p3_alu_r), 1));
-                count := count - 1;
-            end loop;
-            
-            -- Shift right once to get correct allignment
-            -- In case of overflow, we will skip the while loop and only shift right once
-            p3_alu_r := std_logic_vector(shift_right(unsigned(p3_alu_r), 1));
-            -- Adjust exponent
-            p3_exp_r := p3_exp_r + count;
+            elsif (p3_alu_r(5) = '1') then
+                p3_exp_r := p3_exp_r - 2;
+                p3_alu_r := std_logic_vector(shift_left(unsigned(p3_alu_r), 2));
+            elsif (p3_alu_r(4) = '1') then
+                p3_exp_r := p3_exp_r - 3;
+                p3_alu_r := std_logic_vector(shift_left(unsigned(p3_alu_r), 3));
+            elsif (p3_alu_r(3) = '1') then
+                p3_exp_r := p3_exp_r - 4;
+                p3_alu_r := std_logic_vector(shift_left(unsigned(p3_alu_r), 4));
+            elsif (p3_alu_r(2) = '1') then
+                p3_exp_r := p3_exp_r - 5;
+                p3_alu_r := std_logic_vector(shift_left(unsigned(p3_alu_r), 5));
+            elsif (p3_alu_r(1) = '1') then
+                p3_exp_r := p3_exp_r - 6;
+                p3_alu_r := std_logic_vector(shift_left(unsigned(p3_alu_r), 6));
+            elsif (p3_alu_r(0) = '1') then
+                p3_exp_r := p3_exp_r - 7;
+                p3_alu_r := std_logic_vector(shift_left(unsigned(p3_alu_r), 7));
+            end if;
             
             -- Generate final result in bfloat 16 format
             if (p3_out_exc_flag = '1') then
