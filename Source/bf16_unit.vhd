@@ -51,6 +51,8 @@ architecture rtl of bf16_unit is
     signal p1_funct5: std_logic_vector(4 downto 0) ;
     signal p2_funct5: std_logic_vector(4 downto 0) ;
     signal p3_funct5: std_logic_vector(4 downto 0) ;
+    signal p4_funct5: std_logic_vector(4 downto 0) ;
+    signal p5_funct5: std_logic_vector(4 downto 0) ;
 
     -- Connect output of each circuit to multiplexer
     signal mux_mult_add_sub: std_logic_vector(15 downto 0) ;
@@ -82,10 +84,14 @@ begin
                 p1_funct5 <= (others => '0');
                 p2_funct5 <= (others => '0');
                 p3_funct5 <= (others => '0');
+                p4_funct5 <= (others => '0');
+                p5_funct5 <= (others => '0');
             elsif rising_edge(clk) then
                 p1_funct5 <= funct5;
                 p2_funct5 <= p1_funct5;
                 p3_funct5 <= p2_funct5;
+                p4_funct5 <= p3_funct5;
+                p5_funct5 <= p4_funct5;
             end if;
     end process p_reg;
 end architecture;
