@@ -134,9 +134,6 @@ begin
             -- Prepare operands
             alu_in1 := '1' & in1(6 downto 0);
             alu_in2 := '1' & in2(6 downto 0);
-            
-            exp_1 := exp_1 -127;
-            exp_2 := exp_2 -127;
 
             exp_r := exp_1 - exp_2;
 
@@ -249,19 +246,3 @@ begin
             end if;
     end process stage_3;
 end architecture;   
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
