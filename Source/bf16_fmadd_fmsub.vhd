@@ -18,7 +18,7 @@ architecture rtl of bf16_fmadd_fmsub is
     -- p1 register
     signal p1_in_in3: std_logic_vector(15 downto 0) ;
     signal p1_in_funct5: std_logic_vector(4 downto 0) ;
-    signal p1_in_exp_rm: integer range -252 to 255 ; 
+    signal p1_in_exp_rm: integer range 0 to 510 ; 
     signal p1_in_alu_in1: std_logic_vector(7 downto 0) ;
     signal p1_in_alu_in2: std_logic_vector(7 downto 0) ;
     signal p1_in_exc_result_mult: std_logic_vector(15 downto 0) ;
@@ -27,7 +27,7 @@ architecture rtl of bf16_fmadd_fmsub is
 
     signal p1_out_in3: std_logic_vector(15 downto 0) ;
     signal p1_out_funct5: std_logic_vector(4 downto 0) ;
-    signal p1_out_exp_rm: integer range -252 to 255 ; 
+    signal p1_out_exp_rm: integer range 0 to 510 ;
     signal p1_out_alu_in1: std_logic_vector(7 downto 0) ;
     signal p1_out_alu_in2: std_logic_vector(7 downto 0) ;
     signal p1_out_exc_result_mult: std_logic_vector(15 downto 0) ;
@@ -36,7 +36,7 @@ architecture rtl of bf16_fmadd_fmsub is
 
     -- p2 register
     signal p2_in_alu_rm: std_logic_vector(15 downto 0) ;
-    signal p2_in_exp_rm: integer range -252 to 255 ; 
+    signal p2_in_exp_rm: integer range 0 to 510 ;
     signal p2_in_s_rm: std_logic;
     signal p2_in_exc_result_mult: std_logic_vector(15 downto 0) ;
     signal p2_in_in3: std_logic_vector(15 downto 0) ;
@@ -44,7 +44,7 @@ architecture rtl of bf16_fmadd_fmsub is
     signal p2_in_exc_flag_mult: std_logic;
 
     signal p2_out_alu_rm: std_logic_vector(15 downto 0) ;
-    signal p2_out_exp_rm: integer range -252 to 255 ; 
+    signal p2_out_exp_rm: integer range 0 to 510 ;
     signal p2_out_s_rm: std_logic;
     signal p2_out_exc_result_mult: std_logic_vector(15 downto 0) ;
     signal p2_out_in3: std_logic_vector(15 downto 0) ;
@@ -164,12 +164,12 @@ begin
     end process p_reg;
 
     stage_1: process(in1, in2, in3, funct5) is
-        variable exp_1: integer range -252 to 255 ;
-        variable exp_2: integer range -252 to 255 ; 
+        variable exp_1: integer range 0 to 255 ;
+        variable exp_2: integer range 0 to 255 ; 
         variable alu_in1: std_logic_vector(7 downto 0) ;
         variable alu_in2: std_logic_vector(7 downto 0) ;
         variable s_rm: std_logic ;  -- multiplication result sign
-        variable exp_rm: integer range -252 to 255 ; 
+        variable exp_rm: integer range 0 to 510 ; 
         variable exc_flag_mult: std_logic;
         variable exc_result_mult: std_logic_vector(15 downto 0) ;
         begin
@@ -205,20 +205,18 @@ begin
                 alu_in1 := '1' & in1(6 downto 0);
                 alu_in2 := '1' & in2(6 downto 0);
 
-                exp_1 := exp_1 -127;
-                exp_2 := exp_2 -127;
-
                 exp_rm := exp_1 + exp_2;
                 
                 -- adjust multiplication result sign
                 s_rm := in1(15) xor in2(15);
                 exc_flag_mult:= '1';
                 -- detect overflow/underflow
-                if ((exp_rm > 127) and (s_rm = '0')) then
+                -- We are working with bias notation and not actual exponent
+                if ((exp_rm > 381) and (s_rm = '0')) then
                     exc_result_mult := "0111111110000000"; -- +inf
-                elsif ((exp_rm > 127) and (s_rm = '1')) then
+                elsif ((exp_rm > 381) and (s_rm = '1')) then
                     exc_result_mult := "1111111110000000"; -- -inf
-                elsif (exp_rm < (-126)) then
+                elsif (exp_rm < (128)) then
                     exc_result_mult := "0000000000000000"; -- zero
                 else
                     exc_flag_mult:= '0';
@@ -251,7 +249,7 @@ begin
     end process stage_2;
 
     stage_3: process(p2_out_alu_rm, p2_out_exp_rm, p2_out_s_rm, p2_out_exc_result_mult, p2_out_in3, p2_out_funct5, p2_out_exc_flag_mult) is
-        variable p2_exp_rm: integer range -252 to 255 ; 
+        variable p2_exp_rm: integer range 0 to 510 ; 
         variable p2_alu_rm: std_logic_vector (15 downto 0);
         variable result: std_logic_vector (15 downto 0);
         begin
@@ -270,7 +268,7 @@ begin
                 result := p2_out_exc_result_mult;
             else
                 result(15):= p2_out_s_rm;
-                result(14 downto 7):= std_logic_vector(to_unsigned(p2_exp_rm + 127,8));
+                result(14 downto 7):= std_logic_vector(to_unsigned(p2_exp_rm - 127,8));
                 result(6 downto 0):= p2_alu_rm(14 downto 8);
             end if;
 
