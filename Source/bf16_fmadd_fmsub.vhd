@@ -252,9 +252,16 @@ begin
         variable p2_exp_rm: integer range 0 to 510 ; 
         variable p2_alu_rm: std_logic_vector (15 downto 0);
         variable result: std_logic_vector (15 downto 0);
+        variable p2_s_rm: std_logic;
+        variable flag: std_logic;
+        variable exception: std_logic_vector (15 downto 0);
         begin
             p2_exp_rm := p2_out_exp_rm;
             p2_alu_rm := p2_out_alu_rm;
+            p2_s_rm := p2_out_s_rm;
+            exception := p2_out_exc_result_mult;
+            flag := p2_out_exc_flag_mult;
+
             if (p2_alu_rm(15) = '1') then
                 -- Adjust exponent
                 p2_exp_rm := p2_exp_rm + 1;
@@ -263,11 +270,34 @@ begin
                 p2_alu_rm := std_logic_vector(shift_left(unsigned(p2_alu_rm), 1));
             end if;
 
+            -- round to the nearest even
+            if (p2_alu_rm(7) = '1') then
+                p2_alu_rm(14 downto 8) := std_logic_vector(unsigned(p2_alu_rm(14 downto 8))+1);
+                -- Adjust exponent
+                if (p2_alu_rm(14 downto 8) = "0000000") then
+                    p2_exp_rm := p2_exp_rm + 1;
+                end if;
+            end if;
+
+            -- check again for overflow/underflow
+            if (flag = '0') then
+                if ((p2_exp_rm > 381) and (p2_s_rm = '0')) then
+                    exception := "0111111110000000"; -- +inf
+                    flag := '1';
+                elsif ((p2_exp_rm > 381) and (p2_s_rm = '1')) then
+                    exception := "1111111110000000"; -- -inf
+                    flag := '1';
+                elsif (p2_exp_rm < (128)) then
+                    exception := "0000000000000000"; -- zero
+                    flag := '1';
+                end if;
+            end if;
+
             -- Generate final result in bfloat 16 format
-            if (p2_out_exc_flag_mult = '1') then
-                result := p2_out_exc_result_mult;
+            if (flag = '1') then
+                result := exception;
             else
-                result(15):= p2_out_s_rm;
+                result(15):= p2_s_rm;
                 result(14 downto 7):= std_logic_vector(to_unsigned(p2_exp_rm - 127,8));
                 result(6 downto 0):= p2_alu_rm(14 downto 8);
             end if;
