@@ -15,14 +15,14 @@ end bf16_div;
 architecture rtl of bf16_div is
     -- p1 register
     signal p1_in_alu_in2 : std_logic_vector(7 downto 0);
-    signal p1_in_alu_r: std_logic_vector(17 downto 0);
+    signal p1_in_alu_r: std_logic_vector(18 downto 0);
     signal p1_in_exc_res: std_logic_vector(15 downto 0);
     signal p1_in_exc_flag: std_logic;
     signal p1_in_s_r: std_logic;
     signal p1_in_exp_r: integer range -254 to 255 ;
 
     signal p1_out_alu_in2 : std_logic_vector(7 downto 0);
-    signal p1_out_alu_r: std_logic_vector(17 downto 0);
+    signal p1_out_alu_r: std_logic_vector(18 downto 0);
     signal p1_out_exc_res: std_logic_vector(15 downto 0);
     signal p1_out_exc_flag: std_logic;
     signal p1_out_s_r: std_logic;
@@ -33,15 +33,15 @@ architecture rtl of bf16_div is
     signal p2_in_exc_flag: std_logic ;
     signal p2_in_exp_r: integer range -254 to 255 ;
     signal p2_in_s_r: std_logic ;
-    signal p2_in_alu_r: std_logic_vector(17 downto 0) ;
-    signal p2_in_count: integer range 0 to 7 ;
+    signal p2_in_alu_r: std_logic_vector(18 downto 0) ;
+    signal p2_in_count: integer range 0 to 8 ;
 
     signal p2_out_exc_res: std_logic_vector(15 downto 0) ;
     signal p2_out_exc_flag: std_logic ;
     signal p2_out_exp_r: integer range -254 to 255 ;
     signal p2_out_s_r: std_logic ;
-    signal p2_out_alu_r: std_logic_vector(17 downto 0) ;
-    signal p2_out_count: integer range 0 to 7 ;
+    signal p2_out_alu_r: std_logic_vector(18 downto 0) ;
+    signal p2_out_count: integer range 0 to 8 ;
 
     type myState is (idle_s, busy_s, done_s);
     signal currentState : myState; -- state of the FSM
@@ -88,10 +88,11 @@ begin
         variable exp_2: integer range -254 to 255 ; -- exponent
         variable alu_in2: std_logic_vector(7 downto 0); -- operand
 
-        variable alu_r: std_logic_vector(17 downto 0); -- result
-        -- 18 bits: 
+        variable alu_r: std_logic_vector(18 downto 0); -- result
+        -- 19 bits: 
         -- 9 bits to shift dividend when it is smaller then divisor
         -- 8 bits for the mantissa with 1 extra bit to shift in case mantissa is not normalized
+        -- 1 extra bit for rounding correctly
 
         variable s_r: std_logic;  -- result sign
         variable exp_r: integer range -254 to 255 ; -- exponent
@@ -160,14 +161,14 @@ begin
         -- we start with one iteration to check how many subtractions to perform
         if (exc_flag = '0') then
             if (unsigned(alu_in2) <= unsigned(alu_in1)) then
-                alu_r(16 downto 9):= std_logic_vector(unsigned(alu_in1) - unsigned(alu_in2));
+                alu_r(17 downto 10):= std_logic_vector(unsigned(alu_in1) - unsigned(alu_in2));
                 alu_r(0):= '1';
             else
                 -- the bit representing the "integral" part is 0
                 -- we need to shift left once and adjust exponent
                 -- this allows us to perform one more subtraction to get more precision
                 alu_in1 := std_logic_vector(shift_left(unsigned(alu_in1), 1));
-                alu_r(16 downto 9):= std_logic_vector(unsigned(alu_in1) - unsigned(alu_in2));
+                alu_r(17 downto 10):= std_logic_vector(unsigned(alu_in1) - unsigned(alu_in2));
                 alu_r(0):= '1';
                 exp_r := exp_r - 1;
             end if;
@@ -182,9 +183,9 @@ begin
     end process stage_1;
 
     stage_2: process(clk, reset, p1_out_alu_in2, p1_out_exp_r, p1_out_alu_r, p1_out_exc_res, p1_out_exc_flag, p1_out_s_r) is
-        variable count: integer range 0 to 7 ;
+        variable count: integer range 0 to 8 ;
         variable p1_alu_in2: std_logic_vector(7 downto 0) ;
-        variable p1_alu_r: std_logic_vector(17 downto 0);
+        variable p1_alu_r: std_logic_vector(18 downto 0);
         begin
 
             if (rising_edge(clk)) then
@@ -198,11 +199,11 @@ begin
                             p1_alu_r := p1_out_alu_r;
                             currentState <= busy_s;
                         when busy_s =>
-                            if (unsigned(p1_alu_in2) > unsigned(p1_alu_r(17 downto 9))) and (p1_alu_r(17 downto 9) /= "000000000") and (count < 7) then
+                            if (unsigned(p1_alu_in2) > unsigned(p1_alu_r(18 downto 10))) and (p1_alu_r(18 downto 10) /= "000000000") and (count < 8) then
                                 p1_alu_r := std_logic_vector(shift_left(unsigned(p1_alu_r), 1));
 
-                                if (unsigned(p1_alu_in2) <= unsigned(p1_alu_r(17 downto 9))) then
-                                    p1_alu_r(17 downto 9):= std_logic_vector(unsigned(p1_alu_r(17 downto 9)) - unsigned(p1_alu_in2));
+                                if (unsigned(p1_alu_in2) <= unsigned(p1_alu_r(18 downto 10))) then
+                                    p1_alu_r(18 downto 10):= std_logic_vector(unsigned(p1_alu_r(18 downto 10)) - unsigned(p1_alu_in2));
                                     p1_alu_r(0):= '1';
                                 end if;
                                 count := count + 1;
@@ -224,25 +225,35 @@ begin
     end process stage_2;
 
     stage_3: process(p2_out_exc_res, p2_out_exc_flag, p2_out_exp_r, p2_out_s_r, p2_out_alu_r, p2_out_count) is
-        variable p2_alu_r: std_logic_vector(17 downto 0) ;
+        variable p2_alu_r: std_logic_vector(18 downto 0) ;
+        variable expo: integer range -254 to 255 ; -- exponent
         begin
             p2_alu_r := p2_out_alu_r;
+            expo := p2_out_exp_r;
             -- Perform correct allignment
-            p2_alu_r := std_logic_vector(shift_left(unsigned(p2_alu_r), 7-p2_out_count));
+            p2_alu_r := std_logic_vector(shift_left(unsigned(p2_alu_r), 8-p2_out_count));
+
+            if (p2_alu_r(0) = '1') then
+                p2_alu_r(7 downto 1) := std_logic_vector(unsigned(p2_alu_r(7 downto 1))+1);
+                if (p2_alu_r(7 downto 1) = "0000000") then
+                    expo := expo + 1;
+                end if;
+            end if;
+
 
             -- Generate final result in bfloat 16 format
             if (p2_out_exc_flag = '1') then
                 result <= p2_out_exc_res;
-            elsif ((p2_out_exp_r = 255) and (p2_out_s_r = '0')) then
+            elsif ((expo = 255) and (p2_out_s_r = '0')) then
                 result <= "0111111110000000"; -- overflow, result = +inf
-            elsif ((p2_out_exp_r = 255) and (p2_out_s_r = '1')) then
+            elsif ((expo = 255) and (p2_out_s_r = '1')) then
                 result <= "1111111110000000"; -- overflow, result = -inf
-            elsif (p2_out_exp_r < (-126)) then
+            elsif (expo < (-126)) then
                 result <= "0000000000000000"; -- underflow, result = zero
             else
                 result(15) <= p2_out_s_r;
-                result(14 downto 7) <= std_logic_vector(to_unsigned(p2_out_exp_r + 127,8));
-                result(6 downto 0) <= p2_alu_r(6 downto 0);
+                result(14 downto 7) <= std_logic_vector(to_unsigned(expo + 127,8));
+                result(6 downto 0) <= p2_alu_r(7 downto 1);
             end if;
     end process stage_3;
 end architecture;   
