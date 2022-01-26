@@ -18,7 +18,7 @@ architecture rtl of bf16_fmadd_fmsub is
     -- p1 register
     signal p1_in_in3: std_logic_vector(15 downto 0) ;
     signal p1_in_funct5: std_logic_vector(4 downto 0) ;
-    signal p1_in_exp_rm: integer range 0 to 510 ; 
+    signal p1_in_exp_rm: integer range 0 to 511 ; 
     signal p1_in_alu_in1: std_logic_vector(7 downto 0) ;
     signal p1_in_alu_in2: std_logic_vector(7 downto 0) ;
     signal p1_in_exc_result_mult: std_logic_vector(15 downto 0) ;
@@ -27,7 +27,7 @@ architecture rtl of bf16_fmadd_fmsub is
 
     signal p1_out_in3: std_logic_vector(15 downto 0) ;
     signal p1_out_funct5: std_logic_vector(4 downto 0) ;
-    signal p1_out_exp_rm: integer range 0 to 510 ;
+    signal p1_out_exp_rm: integer range 0 to 511 ;
     signal p1_out_alu_in1: std_logic_vector(7 downto 0) ;
     signal p1_out_alu_in2: std_logic_vector(7 downto 0) ;
     signal p1_out_exc_result_mult: std_logic_vector(15 downto 0) ;
@@ -36,7 +36,7 @@ architecture rtl of bf16_fmadd_fmsub is
 
     -- p2 register
     signal p2_in_alu_rm: std_logic_vector(15 downto 0) ;
-    signal p2_in_exp_rm: integer range 0 to 510 ;
+    signal p2_in_exp_rm: integer range 0 to 511 ;
     signal p2_in_s_rm: std_logic;
     signal p2_in_exc_result_mult: std_logic_vector(15 downto 0) ;
     signal p2_in_in3: std_logic_vector(15 downto 0) ;
@@ -44,7 +44,7 @@ architecture rtl of bf16_fmadd_fmsub is
     signal p2_in_exc_flag_mult: std_logic;
 
     signal p2_out_alu_rm: std_logic_vector(15 downto 0) ;
-    signal p2_out_exp_rm: integer range 0 to 510 ;
+    signal p2_out_exp_rm: integer range 0 to 511 ;
     signal p2_out_s_rm: std_logic;
     signal p2_out_exc_result_mult: std_logic_vector(15 downto 0) ;
     signal p2_out_in3: std_logic_vector(15 downto 0) ;
@@ -169,7 +169,7 @@ begin
         variable alu_in1: std_logic_vector(7 downto 0) ;
         variable alu_in2: std_logic_vector(7 downto 0) ;
         variable s_rm: std_logic ;  -- multiplication result sign
-        variable exp_rm: integer range 0 to 510 ; 
+        variable exp_rm: integer range 0 to 511 ; 
         variable exc_flag_mult: std_logic;
         variable exc_result_mult: std_logic_vector(15 downto 0) ;
         begin
@@ -249,9 +249,9 @@ begin
     end process stage_2;
 
     stage_3: process(p2_out_alu_rm, p2_out_exp_rm, p2_out_s_rm, p2_out_exc_result_mult, p2_out_in3, p2_out_funct5, p2_out_exc_flag_mult) is
-        variable p2_exp_rm: integer range 0 to 510 ; 
+        variable p2_exp_rm: integer range 0 to 511 ; 
         variable p2_alu_rm: std_logic_vector (15 downto 0);
-        variable result: std_logic_vector (15 downto 0);
+        variable result_mult: std_logic_vector (15 downto 0);
         variable p2_s_rm: std_logic;
         variable flag: std_logic;
         variable exception: std_logic_vector (15 downto 0);
@@ -295,16 +295,16 @@ begin
 
             -- Generate final result in bfloat 16 format
             if (flag = '1') then
-                result := exception;
+                result_mult := exception;
             else
-                result(15):= p2_s_rm;
-                result(14 downto 7):= std_logic_vector(to_unsigned(p2_exp_rm - 127,8));
-                result(6 downto 0):= p2_alu_rm(14 downto 8);
+                result_mult(15):= p2_s_rm;
+                result_mult(14 downto 7):= std_logic_vector(to_unsigned(p2_exp_rm - 127,8));
+                result_mult(6 downto 0):= p2_alu_rm(14 downto 8);
             end if;
 
             p3_in_in3 <= p2_out_in3;
             p3_in_funct5 <= p2_out_funct5;
-            p3_in_result_mult <= result;
+            p3_in_result_mult <= result_mult;
     end process stage_3;
 
     stage_4: process(p3_out_in3, p3_out_funct5, p3_out_result_mult) is
