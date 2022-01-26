@@ -171,8 +171,6 @@ begin
                 alu_in2 := std_logic_vector(signed(alu_in2));
             end if;
 
-            -- assign the final value of each variable to these signals
-            -- they need to be preserved since we are using pipeling
             p1_in_alu_in1 <= alu_in1;
             p1_in_alu_in2 <= alu_in2;
             p1_in_exc_res <= exc_res;
