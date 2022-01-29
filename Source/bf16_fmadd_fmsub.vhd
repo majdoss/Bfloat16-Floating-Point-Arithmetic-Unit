@@ -53,6 +53,9 @@ architecture rtl of bf16_fmadd_fmsub is
     signal p5_reg_exc_res: std_logic_vector(15 downto 0) ;
     signal p5_reg_exc_flag: std_logic ;
     signal p5_reg_s_r: std_logic ;
+    
+    -- p6 register
+    signal p6_reg_result: std_logic_vector(15 downto 0) ;
 
     -- STAGE 1
     signal alu_rm: std_logic_vector(15 downto 0);
@@ -69,12 +72,14 @@ architecture rtl of bf16_fmadd_fmsub is
     signal exp_r: integer range 0 to 255;
     signal alu_m: std_logic_vector(9 downto 0) ;
     signal alu_in3: std_logic_vector(9 downto 0) ;
+    -- 10 bits used as operand: 
+    -- 1 sign bit, 1 guard bit, 1 implied one, 7 from significand
     signal alu_m_shifted: std_logic_vector(9 downto 0) ;
     signal alu_in3_shifted: std_logic_vector(9 downto 0) ;
     signal s_m: std_logic;
     signal s_in3: std_logic;
-    -- 10 bits used as operand: 
-    -- 1 sign bit, 1 guard bit, 1 implied one, 7 from significand
+    -- STAGE 6
+    signal result_s6: std_logic_vector(15 downto 0) ;
 begin
     process (clk, exp_1, exp_2, in3, funct5, alu_in1, alu_in2, s_rm, exp_r) is
         begin
@@ -105,6 +110,7 @@ begin
                 p5_reg_exp_r <= 0;
                 p5_reg_exc_res <= (others => '0');
                 p5_reg_exc_flag <= '1';
+                p6_reg_result <=  (others => '0');
             elsif (rising_edge(clk)) then
                 -- STAGE 1
                 p1_reg_exp_rm <= exp_1 + exp_2; -- prepare multiplication result exponent
@@ -132,6 +138,8 @@ begin
                 p5_reg_exp_r <= p4_reg_exp_r;
                 p5_reg_exc_res <= p4_reg_exc_res;
                 p5_reg_exc_flag <= p4_reg_exc_flag;
+                -- STAGE 6
+                p6_reg_result <= result_s6;
             end if;
     end process;
 
@@ -243,22 +251,18 @@ begin
 
     -- STAGE 4
     process (p3_reg_result_mult, p3_reg_in3) is
+        variable exp_s1: integer range 0 to 255;
+        variable exp_s2: integer range 0 to 255;
         begin
             -- Prepare exponents
             exp_3 <= to_integer(unsigned(p3_reg_in3(14 downto 7)));
             exp_m <= to_integer(unsigned(p3_reg_result_mult(14 downto 7)));
-    end process;
-
-    -- STAGE 4
-    process (exp_3, exp_m, p3_reg_result_mult, p3_reg_in3) is
-        variable exp_s1: integer range 0 to 255;
-        variable exp_s2: integer range 0 to 255;
-        begin
-            exp_s2 := to_integer(to_unsigned((exp_m - exp_3),8));
-            exp_s1 := to_integer(to_unsigned((exp_3 - exp_m),8));
+            exp_s2 := to_integer(unsigned((unsigned(p3_reg_result_mult(14 downto 7)) - unsigned(p3_reg_in3(14 downto 7)))));
+            exp_s1 := to_integer(unsigned((unsigned(p3_reg_in3(14 downto 7)) - unsigned(p3_reg_result_mult(14 downto 7)))));
             -- Prepare operands
             alu_m <= "001" & p3_reg_result_mult(6 downto 0);
             alu_in3 <= "001" & p3_reg_in3(6 downto 0);
+            -- Used for Mantissa allignment in case needed
             alu_m_shifted <= std_logic_vector(shift_right(signed(("001" & p3_reg_result_mult(6 downto 0))),exp_s1));
             alu_in3_shifted <= std_logic_vector(shift_right(signed(("001" & p3_reg_in3(6 downto 0))),exp_s2));
             -- Prepare operands signs
@@ -361,7 +365,8 @@ begin
             end if;
     end process;
 
-    stage_5: process(clk, reset, p4_reg_alu_m, p4_reg_alu_in3, p4_reg_exc_res, p4_reg_exc_flag, p4_reg_funct5, p4_reg_exp_r) is
+    -- STAGE 5
+    process(clk, reset, p4_reg_alu_m, p4_reg_alu_in3, p4_reg_exc_res, p4_reg_exc_flag, p4_reg_funct5, p4_reg_exp_r) is
         variable alu_r: std_logic_vector(9 downto 0) ;
         variable s_r: std_logic;  -- result sign
         begin
@@ -388,9 +393,10 @@ begin
                 p5_reg_alu_r <= alu_r;
                 p5_reg_s_r <= s_r;
             end if;
-    end process stage_5;
+    end process;
 
-    stage_6: process (p5_reg_exp_r, p5_reg_alu_r, p5_reg_exc_res, p5_reg_exc_flag, p5_reg_s_r) is
+    -- STAGE 6
+    process (p5_reg_exp_r, p5_reg_alu_r, p5_reg_exc_res, p5_reg_exc_flag, p5_reg_s_r) is
         variable p5_alu_r: std_logic_vector(9 downto 0) ;
         variable p5_exp_r: integer range -7 to 255 ;
         begin
@@ -430,19 +436,23 @@ begin
             
             -- Generate final result in bfloat 16 format
             if (p5_reg_exc_flag = '1') then
-                result <= p5_reg_exc_res;
+                result_s6 <= p5_reg_exc_res;
             elsif ((p5_exp_r = 255) and (p5_reg_s_r = '0')) then
-                result <= "0111111110000000"; -- overflow, result = +inf
+                result_s6 <= "0111111110000000"; -- overflow, result = +inf
             elsif ((p5_exp_r = 255) and (p5_reg_s_r = '1')) then
-                result <= "1111111110000000"; -- overflow, result = -inf
+                result_s6 <= "1111111110000000"; -- overflow, result = -inf
             elsif (p5_exp_r < (-126)) then
-                result <= "0000000000000000"; -- underflow, result = zero
+                result_s6 <= "0000000000000000"; -- underflow, result = zero
             else
-                result(15) <= p5_reg_s_r;
-                result(14 downto 7) <= std_logic_vector(to_unsigned(p5_exp_r,8));
-                result(6 downto 0) <= p5_alu_r(6 downto 0);
+                result_s6(15) <= p5_reg_s_r;
+                result_s6(14 downto 7) <= std_logic_vector(to_unsigned(p5_exp_r,8));
+                result_s6(6 downto 0) <= p5_alu_r(6 downto 0);
             end if;
-    end process stage_6;
+    end process;
+
+    -- STAGE 7
+    result <= p6_reg_result;
+
 end architecture;
 
 
