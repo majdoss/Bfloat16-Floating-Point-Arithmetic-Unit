@@ -437,11 +437,11 @@ begin
             -- Generate final result in bfloat 16 format
             if (p5_reg_exc_flag = '1') then
                 result_s6 <= p5_reg_exc_res;
-            elsif ((p5_exp_r = 255) and (p5_reg_s_r = '0')) then
+            elsif ((p5_exp_r >= 255) and (p5_reg_s_r = '0')) then
                 result_s6 <= "0111111110000000"; -- overflow, result = +inf
-            elsif ((p5_exp_r = 255) and (p5_reg_s_r = '1')) then
+            elsif ((p5_exp_r >= 255) and (p5_reg_s_r = '1')) then
                 result_s6 <= "1111111110000000"; -- overflow, result = -inf
-            elsif (p5_exp_r < (-126)) then
+            elsif (p5_exp_r <= 0) then
                 result_s6 <= "0000000000000000"; -- underflow, result = zero
             else
                 result_s6(15) <= p5_reg_s_r;
