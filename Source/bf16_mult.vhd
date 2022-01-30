@@ -14,80 +14,85 @@ end bf16_mult;
 
 architecture rtl of bf16_mult is
     -- p1 register
-    signal p1_in_exp_rm: integer range 0 to 511 ; 
-    signal p1_in_alu_in1: std_logic_vector(7 downto 0) ;
-    signal p1_in_alu_in2: std_logic_vector(7 downto 0) ;
-    signal p1_in_exc_result_mult: std_logic_vector(15 downto 0) ;
-    signal p1_in_s_rm: std_logic;
-    signal p1_in_exc_flag_mult: std_logic;
-
-    signal p1_out_exp_rm: integer range 0 to 511 ;
-    signal p1_out_alu_in1: std_logic_vector(7 downto 0) ;
-    signal p1_out_alu_in2: std_logic_vector(7 downto 0) ;
-    signal p1_out_exc_result_mult: std_logic_vector(15 downto 0) ;
-    signal p1_out_s_rm: std_logic;
-    signal p1_out_exc_flag_mult: std_logic;
+    signal p1_reg_exp_rm: integer range 0 to 511 ;
+    signal p1_reg_alu_in1: std_logic_vector(7 downto 0) ;
+    signal p1_reg_alu_in2: std_logic_vector(7 downto 0) ;
+    signal p1_reg_exc_result_mult: std_logic_vector(15 downto 0) ;
+    signal p1_reg_s_rm: std_logic;
+    signal p1_reg_exc_flag_mult: std_logic;
 
     -- p2 register
-    signal p2_in_alu_rm: std_logic_vector(15 downto 0) ;
-    signal p2_in_exp_rm: integer range 0 to 511 ;
-    signal p2_in_s_rm: std_logic;
-    signal p2_in_exc_result_mult: std_logic_vector(15 downto 0) ;
-    signal p2_in_exc_flag_mult: std_logic;
+    signal p2_reg_alu_rm: std_logic_vector(15 downto 0) ;
+    signal p2_reg_exp_rm: integer range 0 to 511 ;
+    signal p2_reg_s_rm: std_logic;
+    signal p2_reg_exc_result_mult: std_logic_vector(15 downto 0) ;
+    signal p2_reg_exc_flag_mult: std_logic;
 
-    signal p2_out_alu_rm: std_logic_vector(15 downto 0) ;
-    signal p2_out_exp_rm: integer range 0 to 511 ;
-    signal p2_out_s_rm: std_logic;
-    signal p2_out_exc_result_mult: std_logic_vector(15 downto 0) ;
-    signal p2_out_exc_flag_mult: std_logic;
+    -- p3 register
+    signal p3_reg_result_mult: std_logic_vector(15 downto 0) ;
+
+    -- STAGE 1
+    signal alu_rm: std_logic_vector(15 downto 0);
+    signal exp_1: integer range 0 to 255 ;
+    signal exp_2: integer range 0 to 255 ;
+    signal alu_in1: std_logic_vector(7 downto 0) ;
+    signal alu_in2: std_logic_vector(7 downto 0) ; 
+    signal s_rm: std_logic ;  -- multiplication result sign
+    -- STAGE 3 
+    signal result_mult: std_logic_vector(15 downto 0);  -- multiplication result in bf16 format
 begin
-    p_reg: process (clk, reset) is
+    process (clk, exp_1, exp_2, alu_in1, alu_in2, s_rm) is
         begin
             if (reset = '0') then
                 -- p1 register
-                p1_out_exp_rm <= 0;
-                p1_out_alu_in1<= (others => '0');
-                p1_out_alu_in2<= (others => '0');
-                p1_out_exc_result_mult <= (others => '0');
-                p1_out_s_rm <= '0';
-                p1_out_exc_flag_mult <= '1';
+                p1_reg_exp_rm <= 0;
+                p1_reg_alu_in1<= (others => '0');
+                p1_reg_alu_in2<= (others => '0');
+                p1_reg_s_rm <= '0';
                 -- p2 register
-                p2_out_alu_rm <= (others => '0');
-                p2_out_exp_rm <= 0;
-                p2_out_s_rm <= '0';
-                p2_out_exc_result_mult <= (others => '0');
-                p2_out_exc_flag_mult <= '1';
-            elsif rising_edge(clk) then
-                -- p1 register
-                p1_out_exp_rm <= p1_in_exp_rm;
-                p1_out_alu_in1 <= p1_in_alu_in1;
-                p1_out_alu_in2 <= p1_in_alu_in2;
-                p1_out_exc_result_mult <= p1_in_exc_result_mult;
-                p1_out_s_rm <= p1_in_s_rm;
-                p1_out_exc_flag_mult <= p1_in_exc_flag_mult;
-                -- p2 register
-                p2_out_alu_rm <= p2_in_alu_rm;
-                p2_out_exp_rm <= p2_in_exp_rm;
-                p2_out_s_rm <= p2_in_s_rm;
-                p2_out_exc_result_mult <= p2_in_exc_result_mult;
-                p2_out_exc_flag_mult <= p2_in_exc_flag_mult;
+                p2_reg_alu_rm <= (others => '0');
+                p2_reg_exp_rm <= 0;
+                p2_reg_s_rm <= '0';
+                p2_reg_exc_result_mult <= (others => '0');
+                p2_reg_exc_flag_mult <= '1';
+                -- p3 register
+                p3_reg_result_mult <= (others => '0');
+            elsif (rising_edge(clk)) then
+                -- STAGE 1
+                p1_reg_exp_rm <= exp_1 + exp_2; -- prepare multiplication result exponent
+                p1_reg_alu_in1<= alu_in1;
+                p1_reg_alu_in2<= alu_in2;
+                p1_reg_s_rm <= s_rm;
+                -- STAGE 2
+                p2_reg_alu_rm <= std_logic_vector(unsigned(p1_reg_alu_in1) * unsigned(p1_reg_alu_in2)); -- multiply operands
+                p2_reg_exp_rm <= p1_reg_exp_rm;
+                p2_reg_s_rm <= p1_reg_s_rm;
+                p2_reg_exc_result_mult <= p1_reg_exc_result_mult;
+                p2_reg_exc_flag_mult <= p1_reg_exc_flag_mult;
+                -- STAGE 3
+                p3_reg_result_mult <= result_mult;
             end if;
-    end process p_reg;
+    end process;
 
-    stage_1: process(in1, in2) is
-        variable exp_1: integer range 0 to 255 ;
-        variable exp_2: integer range 0 to 255 ; 
-        variable alu_in1: std_logic_vector(7 downto 0) ;
-        variable alu_in2: std_logic_vector(7 downto 0) ;
-        variable s_rm: std_logic ;  -- multiplication result sign
-        variable exp_rm: integer range 0 to 511 ; 
+    -- STAGE 1
+    process (in1, in2) is
+        begin
+            -- Prepare exponents
+            -- We do not need to work with actual exponent. We use bias notation.
+            exp_1 <= to_integer(unsigned(in1(14 downto 7)));
+            exp_2 <= to_integer(unsigned(in2(14 downto 7)));
+            -- Prepare operands
+            alu_in1 <= '1' & in1(6 downto 0);
+            alu_in2 <= '1' & in2(6 downto 0);
+            -- adjust multiplication result sign
+            s_rm <= in1(15) xor in2(15);
+    end process;
+
+    -- STAGE 1
+    process(clk, reset, in1, in2, exp_1, exp_2) is
         variable exc_flag_mult: std_logic;
         variable exc_result_mult: std_logic_vector(15 downto 0) ;
         begin
-        
-            exp_1 := to_integer(unsigned(in1(14 downto 7)));
-            exp_2 := to_integer(unsigned(in2(14 downto 7)));
-
             -- Handle exceptions: NaN, zero and infinity
             -- Denormalized numbers are flushed to zero
             exc_flag_mult:= '1';
@@ -108,65 +113,31 @@ begin
                         exc_result_mult := in2;
                     end if;
                 end if;
-            
-            -- handle normal
+            -- no exception
             else
                 exc_flag_mult:= '0';
-                -- Prepare operands
-                alu_in1 := '1' & in1(6 downto 0);
-                alu_in2 := '1' & in2(6 downto 0);
-
-                exp_rm := exp_1 + exp_2;
-                
-                -- adjust multiplication result sign
-                s_rm := in1(15) xor in2(15);
-                exc_flag_mult:= '1';
-                -- detect overflow/underflow
-                -- We are working with bias notation and not actual exponent
-                if ((exp_rm > 381) and (s_rm = '0')) then
-                    exc_result_mult := "0111111110000000"; -- +inf
-                elsif ((exp_rm > 381) and (s_rm = '1')) then
-                    exc_result_mult := "1111111110000000"; -- -inf
-                elsif (exp_rm < (128)) then
-                    exc_result_mult := "0000000000000000"; -- zero
-                else
-                    exc_flag_mult:= '0';
-                end if;
             end if;
 
-            p1_in_exp_rm <= exp_rm;
-            p1_in_alu_in1<= alu_in1;
-            p1_in_alu_in2<= alu_in2;
-            p1_in_exc_result_mult <= exc_result_mult;
-            p1_in_s_rm <= s_rm;
-            p1_in_exc_flag_mult <= exc_flag_mult;
-    end process stage_1;
-    
-    stage_2: process(p1_out_exp_rm, p1_out_alu_in1, p1_out_alu_in2, p1_out_exc_result_mult, p1_out_s_rm, p1_out_exc_flag_mult) is
-        variable alu_rm: std_logic_vector(15 downto 0);
-        begin
-            -- multiply the mantissas
-            alu_rm := std_logic_vector(unsigned(p1_out_alu_in1) * unsigned(p1_out_alu_in2));
+            if (reset = '0') then
+                p1_reg_exc_flag_mult <= '1';
+                p1_reg_exc_result_mult <= (others => '0');
+            elsif (rising_edge(clk)) then
+                p1_reg_exc_flag_mult <= exc_flag_mult;
+                p1_reg_exc_result_mult <= exc_result_mult;
+            end if;
+    end process;
 
-            p2_in_alu_rm <= alu_rm;
-            p2_in_exp_rm <= p1_out_exp_rm;
-            p2_in_s_rm <= p1_out_s_rm;
-            p2_in_exc_result_mult <= p1_out_exc_result_mult;
-            p2_in_exc_flag_mult <= p1_out_exc_flag_mult;
-    end process stage_2;
-
-    stage_3: process(p2_out_alu_rm, p2_out_exp_rm, p2_out_s_rm, p2_out_exc_result_mult, p2_out_exc_flag_mult) is
+    -- STAGE 3
+    process(p2_reg_alu_rm, p2_reg_exp_rm, p2_reg_s_rm, p2_reg_exc_result_mult, p2_reg_exc_flag_mult) is
         variable p2_exp_rm: integer range 0 to 511 ; 
         variable p2_alu_rm: std_logic_vector (15 downto 0);
-        variable p2_s_rm: std_logic;
         variable flag: std_logic;
         variable exception: std_logic_vector (15 downto 0);
         begin
-            p2_exp_rm := p2_out_exp_rm;
-            p2_alu_rm := p2_out_alu_rm;
-            p2_s_rm := p2_out_s_rm;
-            exception := p2_out_exc_result_mult;
-            flag := p2_out_exc_flag_mult;
+            p2_exp_rm := p2_reg_exp_rm;
+            p2_alu_rm := p2_reg_alu_rm;
+            exception := p2_reg_exc_result_mult;
+            flag := p2_reg_exc_flag_mult;
 
             if (p2_alu_rm(15) = '1') then
                 -- Adjust exponent
@@ -185,12 +156,12 @@ begin
                 end if;
             end if;
 
-            -- check again for overflow/underflow
+            -- check for overflow/underflow
             if (flag = '0') then
-                if ((p2_exp_rm > 381) and (p2_s_rm = '0')) then
+                if ((p2_exp_rm > 381) and (p2_reg_s_rm = '0')) then
                     exception := "0111111110000000"; -- +inf
                     flag := '1';
-                elsif ((p2_exp_rm > 381) and (p2_s_rm = '1')) then
+                elsif ((p2_exp_rm > 381) and (p2_reg_s_rm = '1')) then
                     exception := "1111111110000000"; -- -inf
                     flag := '1';
                 elsif (p2_exp_rm < (128)) then
@@ -201,12 +172,14 @@ begin
 
             -- Generate final result in bfloat 16 format
             if (flag = '1') then
-                result <= exception;
+                result_mult <= exception;
             else
-                result(15) <= p2_s_rm;
-                result(14 downto 7) <= std_logic_vector(to_unsigned(p2_exp_rm - 127,8));
-                result(6 downto 0) <= p2_alu_rm(14 downto 8);
+                result_mult(15) <= p2_reg_s_rm;
+                result_mult(14 downto 7) <= std_logic_vector(to_unsigned(p2_exp_rm - 127,8));
+                result_mult(6 downto 0) <= p2_alu_rm(14 downto 8);
             end if;
-    end process stage_3;
+    end process;
+
+    result <= p3_reg_result_mult;
 end architecture;   
 
