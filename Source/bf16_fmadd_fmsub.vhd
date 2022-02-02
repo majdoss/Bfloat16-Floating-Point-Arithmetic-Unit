@@ -15,6 +15,9 @@ entity bf16_fmadd_fmsub is
 end bf16_fmadd_fmsub;
 
 architecture rtl of bf16_fmadd_fmsub is
+    -- pipeline registers
+    -- used to propagate information used at later stages
+
     -- p1 register
     signal p1_reg_in3: std_logic_vector(15 downto 0) ;
     signal p1_reg_funct5: std_logic_vector(4 downto 0) ;
@@ -58,29 +61,30 @@ architecture rtl of bf16_fmadd_fmsub is
     signal p6_reg_result: std_logic_vector(15 downto 0) ;
 
     -- STAGE 1
-    signal alu_rm: std_logic_vector(15 downto 0);
-    signal exp_1: integer range 0 to 255 ;
-    signal exp_2: integer range 0 to 255 ;
-    signal alu_in1: std_logic_vector(7 downto 0) ;
-    signal alu_in2: std_logic_vector(7 downto 0) ; 
+    signal alu_rm: std_logic_vector(15 downto 0); -- multiplication result
+    signal exp_1: integer range 0 to 255 ; -- exponent 1
+    signal exp_2: integer range 0 to 255 ; -- exponent 2
+    signal alu_in1: std_logic_vector(7 downto 0) ; -- operand 1
+    signal alu_in2: std_logic_vector(7 downto 0) ; -- operand 2
     signal s_rm: std_logic ;  -- multiplication result sign
     -- STAGE 3 
     signal result_mult: std_logic_vector(15 downto 0);  -- multiplication result in bf16 format
     -- STAGE 4 
-    signal exp_m: integer range 0 to 255 ; -- exponent
-    signal exp_3: integer range 0 to 255 ;
-    signal exp_r: integer range 0 to 255;
-    signal alu_m: std_logic_vector(9 downto 0) ;
-    signal alu_in3: std_logic_vector(9 downto 0) ;
+    signal exp_m: integer range 0 to 255 ; -- multiplication result exponent (used for first input to add/sub)
+    signal exp_3: integer range 0 to 255 ; -- exponent 3 (used for second input to add/sub)
+    signal exp_r: integer range 0 to 255; -- final result exponent
+    signal alu_m: std_logic_vector(9 downto 0) ; -- operand 1 (generated from multiplication result)
+    signal alu_in3: std_logic_vector(9 downto 0) ; -- operand 2
     -- 10 bits used as operand: 
     -- 1 sign bit, 1 guard bit, 1 implied one, 7 from significand
-    signal alu_m_shifted: std_logic_vector(9 downto 0) ;
-    signal alu_in3_shifted: std_logic_vector(9 downto 0) ;
-    signal s_m: std_logic;
-    signal s_in3: std_logic;
+    signal alu_m_shifted: std_logic_vector(9 downto 0) ; -- shifted operand 1 (used if necessary)
+    signal alu_in3_shifted: std_logic_vector(9 downto 0) ; -- shifted operand 2 (used if necessary)
+    signal s_m: std_logic; -- multiplication sign
+    signal s_in3: std_logic; -- input 3 sign
     -- STAGE 6
-    signal result_s6: std_logic_vector(15 downto 0) ;
+    signal result_s6: std_logic_vector(15 downto 0) ; -- final result
 begin
+    -- pipeline registers
     process (clk, exp_1, exp_2, in3, funct5, alu_in1, alu_in2, s_rm, exp_r) is
         begin
             if (reset = '0') then
@@ -113,7 +117,7 @@ begin
                 p6_reg_result <=  (others => '0');
             elsif (rising_edge(clk)) then
                 -- STAGE 1
-                p1_reg_exp_rm <= exp_1 + exp_2; -- prepare multiplication result exponent
+                p1_reg_exp_rm <= exp_1 + exp_2; -- compute multiplication result exponent
                 p1_reg_in3 <= in3;
                 p1_reg_funct5 <= funct5;
                 p1_reg_alu_in1<= alu_in1;
@@ -182,8 +186,8 @@ begin
                         exc_result_mult := in2;
                     end if;
                 end if;
-            -- no exception
             else
+                -- no exception
                 exc_flag_mult:= '0';
             end if;
 
@@ -251,8 +255,9 @@ begin
 
     -- STAGE 4
     process (p3_reg_result_mult, p3_reg_in3) is
-        variable exp_s1: integer range 0 to 255;
+        variable exp_s1: integer range 0 to 255; 
         variable exp_s2: integer range 0 to 255;
+        -- these are used to store the "shift value" in case we need to shift mantissas for allignment
         begin
             -- Prepare exponents
             exp_3 <= to_integer(unsigned(p3_reg_in3(14 downto 7)));
@@ -337,6 +342,7 @@ begin
             if (exp_m >= exp_3) then
                 -- Mantissa allignment
                 v_alu_in3 := alu_in3_shifted;
+                -- Choose correct exponent as result
                 exp_r <= exp_m;
             else
                 v_alu_m := alu_m_shifted;
@@ -371,9 +377,9 @@ begin
         variable s_r: std_logic;  -- result sign
         begin
             case p4_reg_funct5 is 
-                when "00100"|"00000" => -- add
+                when "00100"|"00000" => -- for performing fused multiply add or regular add
                     alu_r := std_logic_vector(signed(p4_reg_alu_m) + signed(p4_reg_alu_in3));
-                when "00101"|"00001" => -- sub
+                when "00101"|"00001" => -- for performing fused multiply sub or regular sub
                     alu_r := std_logic_vector(signed(p4_reg_alu_m) - signed(p4_reg_alu_in3));
                 when others =>
                     alu_r := (others => '0');

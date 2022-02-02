@@ -57,8 +57,8 @@ begin
 
     -- STAGE 1
     process(clk, reset, in1, in2, exp_1, exp_2) is
-        variable alu_in1: std_logic_vector(7 downto 0); -- operand
-        variable alu_in2: std_logic_vector(7 downto 0); -- operand
+        variable alu_in1: std_logic_vector(7 downto 0); -- operand 1
+        variable alu_in2: std_logic_vector(7 downto 0); -- operand 2
 
         variable alu_r: std_logic_vector(17 downto 0); -- result
         -- 18 bits: 
@@ -147,7 +147,8 @@ begin
         variable p1_alu_in2: std_logic_vector(7 downto 0) ;
         variable p1_alu_r: std_logic_vector(17 downto 0);
         begin
-
+            -- In this stage, we are basically performing the "paper and pencil" long divison algorithm
+            -- It is based on multiple subtractions
             if (rising_edge(clk)) then
                 if (reset = '0') then
                     currentState <= idle_s;
