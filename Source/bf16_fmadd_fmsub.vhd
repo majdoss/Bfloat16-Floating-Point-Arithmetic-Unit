@@ -56,6 +56,8 @@ architecture rtl of bf16_fmadd_fmsub is
     signal p5_reg_exc_res: std_logic_vector(15 downto 0) ;
     signal p5_reg_exc_flag: std_logic ;
     signal p5_reg_s_r: std_logic ;
+    signal p5_reg_cancel_res: std_logic_vector(15 downto 0);
+    signal p5_reg_cancel_flag: std_logic;
     
     -- p6 register
     signal p6_reg_result: std_logic_vector(15 downto 0) ;
@@ -83,6 +85,11 @@ architecture rtl of bf16_fmadd_fmsub is
     signal s_in3: std_logic; -- input 3 sign
     -- STAGE 6
     signal result_s6: std_logic_vector(15 downto 0) ; -- final result
+    
+    attribute use_dsp: string;
+    attribute use_dsp of p1_reg_alu_in1: signal is "yes";
+    attribute use_dsp of p1_reg_alu_in2: signal is "yes";
+    attribute use_dsp of p2_reg_alu_rm: signal is "yes";
 begin
     -- pipeline registers
     process (clk, exp_1, exp_2, in3, funct5, alu_in1, alu_in2, s_rm, exp_r) is
@@ -114,6 +121,7 @@ begin
                 p5_reg_exp_r <= 0;
                 p5_reg_exc_res <= (others => '0');
                 p5_reg_exc_flag <= '1';
+                -- p6 register
                 p6_reg_result <=  (others => '0');
             elsif (rising_edge(clk)) then
                 -- STAGE 1
@@ -298,13 +306,7 @@ begin
                 end if;
             elsif ((exp_3 = 0) and (exp_m = 0)) then
                 exc_res := (others => '0');
-            
-            -- handle cancellation (result = 0)
-            elsif ((p3_reg_result_mult(14 downto 0) = p3_reg_in3(14 downto 0)) and (p3_reg_result_mult(15) /= p3_reg_in3(15)) and (p3_reg_funct5(1 downto 0) = "00")) then
-                exc_res := (others => '0');
-            elsif ((p3_reg_result_mult(14 downto 0) = p3_reg_in3(14 downto 0)) and (p3_reg_result_mult(15) = p3_reg_in3(15)) and (p3_reg_funct5(1 downto 0) = "01")) then
-                exc_res := (others => '0');
-        
+
             -- handle NaN and infinity
             elsif ((exp_m = 255) or (exp_3 = 255)) then
                 if (((p3_reg_result_mult(6 downto 0)) /= "0000000") and (exp_m = 255)) then
@@ -375,6 +377,8 @@ begin
     process(clk, reset, p4_reg_alu_m, p4_reg_alu_in3, p4_reg_exc_res, p4_reg_exc_flag, p4_reg_funct5, p4_reg_exp_r) is
         variable alu_r: std_logic_vector(9 downto 0) ;
         variable s_r: std_logic;  -- result sign
+        variable cancel_res: std_logic_vector(15 downto 0); -- cancellation
+        variable cancel_flag: std_logic; -- cancellation flag
         begin
             case p4_reg_funct5 is 
                 when "00100"|"00000" => -- for performing fused multiply add or regular add
@@ -384,6 +388,14 @@ begin
                 when others =>
                     alu_r := (others => '0');
             end case;
+
+            if (alu_r = "0000000000") then
+                cancel_res := (others => '0');
+                cancel_flag := '1';
+            else
+                cancel_res := cancel_res;
+                cancel_flag := '0';
+            end if;
 
             -- Set result sign bit and express result as a magnitude
             s_r := '0';
@@ -395,14 +407,18 @@ begin
             if (reset = '0') then
                 p5_reg_alu_r <= (others => '0');
                 p5_reg_s_r <= '0';
+                p5_reg_cancel_res <= (others => '0');
+                p5_reg_cancel_flag <= '0';
             elsif (rising_edge(clk)) then
                 p5_reg_alu_r <= alu_r;
                 p5_reg_s_r <= s_r;
+                p5_reg_cancel_res <= cancel_res;
+                p5_reg_cancel_flag <= cancel_flag;
             end if;
     end process;
 
     -- STAGE 6
-    process (p5_reg_exp_r, p5_reg_alu_r, p5_reg_exc_res, p5_reg_exc_flag, p5_reg_s_r) is
+    process (p5_reg_cancel_res, p5_reg_cancel_flag, p5_reg_exp_r, p5_reg_alu_r, p5_reg_exc_res, p5_reg_exc_flag, p5_reg_s_r) is
         variable p5_alu_r: std_logic_vector(9 downto 0) ;
         variable p5_exp_r: integer range -7 to 255 ;
         begin
@@ -443,6 +459,8 @@ begin
             -- Generate final result in bfloat 16 format
             if (p5_reg_exc_flag = '1') then
                 result_s6 <= p5_reg_exc_res;
+            elsif (p5_reg_cancel_flag = '1') then
+                result_s6 <= p5_reg_cancel_res;
             elsif ((p5_exp_r >= 255) and (p5_reg_s_r = '0')) then
                 result_s6 <= "0111111110000000"; -- overflow, result = +inf
             elsif ((p5_exp_r >= 255) and (p5_reg_s_r = '1')) then
@@ -460,5 +478,3 @@ begin
     result <= p6_reg_result;
 
 end architecture;
-
-
