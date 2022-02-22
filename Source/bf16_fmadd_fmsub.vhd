@@ -158,15 +158,25 @@ begin
     -- STAGE 1
     process (in1, in2) is
         begin
-            -- Prepare exponents
-            -- We do not need to work with actual exponent. We use bias notation.
-            exp_1 <= to_integer(unsigned(in1(14 downto 7)));
-            exp_2 <= to_integer(unsigned(in2(14 downto 7)));
-            -- Prepare operands
-            alu_in1 <= '1' & in1(6 downto 0);
-            alu_in2 <= '1' & in2(6 downto 0);
-            -- adjust multiplication result sign
-            s_rm <= in1(15) xor in2(15);
+            if ((in1(14 downto 7) = "00000000") or (in2(14 downto 7) = "00000000")) then
+                -- handle zeros and denorms
+                -- Denormalized numbers are flushed to zero
+                exp_1 <= 0;
+                exp_2 <= 0;
+                alu_in1 <= (others => '0');
+                alu_in2 <= (others => '0');
+                s_rm <= '0';
+            else
+                -- Prepare exponents
+                -- We do not need to work with actual exponent. We use bias notation.
+                exp_1 <= to_integer(unsigned(in1(14 downto 7)));
+                exp_2 <= to_integer(unsigned(in2(14 downto 7)));
+                -- Prepare operands
+                alu_in1 <= '1' & in1(6 downto 0);
+                alu_in2 <= '1' & in2(6 downto 0);
+                -- adjust multiplication result sign
+                s_rm <= in1(15) xor in2(15);
+            end if;
     end process;
 
     -- STAGE 1
@@ -174,15 +184,11 @@ begin
         variable exc_flag_mult: std_logic;
         variable exc_result_mult: std_logic_vector(15 downto 0) ;
         begin
-            -- Handle exceptions: NaN, zero and infinity
-            -- Denormalized numbers are flushed to zero
+            -- Handle exceptions: NaN and infinity
             exc_flag_mult:= '1';
-            -- handle zeros and denorms
-            if ((exp_1 = 0) or (exp_2 = 0)) then
-                exc_result_mult := (others => '0');
             
             -- handle NaN and infinity
-            elsif ((exp_1 = 255) or (exp_2 = 255)) then
+            if ((exp_1 = 255) or (exp_2 = 255)) then
                 if (((in1(6 downto 0)) /= "0000000") and (exp_1 = 255)) then
                     exc_result_mult := in1;
                 elsif (((in2(6 downto 0)) /= "0000000") and (exp_2 = 255)) then
@@ -272,43 +278,42 @@ begin
             exp_m <= to_integer(unsigned(p3_reg_result_mult(14 downto 7)));
             exp_s2 := to_integer(unsigned((unsigned(p3_reg_result_mult(14 downto 7)) - unsigned(p3_reg_in3(14 downto 7)))));
             exp_s1 := to_integer(unsigned((unsigned(p3_reg_in3(14 downto 7)) - unsigned(p3_reg_result_mult(14 downto 7)))));
-            -- Prepare operands
-            alu_m <= "001" & p3_reg_result_mult(6 downto 0);
-            alu_in3 <= "001" & p3_reg_in3(6 downto 0);
-            -- Used for Mantissa allignment in case needed
-            alu_m_shifted <= std_logic_vector(shift_right(signed(("001" & p3_reg_result_mult(6 downto 0))),exp_s1));
-            alu_in3_shifted <= std_logic_vector(shift_right(signed(("001" & p3_reg_in3(6 downto 0))),exp_s2));
-            -- Prepare operands signs
-            s_m <= p3_reg_result_mult(15);
-            s_in3 <= p3_reg_in3(15);
+
+            if ((p3_reg_in3(14 downto 7)) = "00000000") then
+                -- handle zeros and denorms
+                -- Denormalized numbers are flushed to zero
+                alu_in3 <= (others => '0');
+                alu_in3_shifted <= (others => '0');
+                s_in3 <= '0';
+            else
+                -- normal case
+                -- Prepare operands
+                alu_in3 <= "001" & p3_reg_in3(6 downto 0);
+                -- Used for Mantissa allignment in case needed
+                alu_in3_shifted <= std_logic_vector(shift_right(signed(("001" & p3_reg_in3(6 downto 0))),exp_s2));
+                -- Prepare operands signs
+                s_in3 <= p3_reg_in3(15);
+            end if;
+
+            if ((p3_reg_result_mult(14 downto 7)) = "00000000") then
+                alu_m <= (others => '0');
+                alu_m_shifted <= (others => '0');
+                s_m <= '0';
+            else
+                alu_m <= "001" & p3_reg_result_mult(6 downto 0);
+                alu_m_shifted <= std_logic_vector(shift_right(signed(("001" & p3_reg_result_mult(6 downto 0))),exp_s1));
+                s_m <= p3_reg_result_mult(15);
+            end if;
     end process;
 
     -- STAGE 4
-    process(clk, reset, exp_m, exp_3, p3_reg_funct5, p3_reg_in3, p3_reg_result_mult) is
+    process(clk, reset, exp_m, exp_3, p3_reg_in3, p3_reg_result_mult) is
         variable exc_res: std_logic_vector(15 downto 0); -- result of exception
         variable exc_flag: std_logic ; -- exception flag
         begin
-            -- Handle exceptions: NaN, zero and infinity
-            -- Denormalized numbers are flushed to zero
+            -- Handle exceptions: NaN and infinity
             exc_flag := '1';
-            -- handle zeros and denorms
-            if ((exp_m = 0) and (exp_3 /= 0)) then
-                if (p3_reg_funct5(1 downto 0) = "01") then
-                    exc_res := not(p3_reg_in3(15)) & p3_reg_in3(14 downto 0);
-                else
-                    exc_res := p3_reg_in3;
-                end if;
-            elsif ((exp_3 = 0) and (exp_m /= 0)) then
-                if (p3_reg_funct5(1 downto 0) = "01") then
-                    exc_res := not(p3_reg_result_mult(15)) & p3_reg_result_mult(14 downto 0);
-                else
-                    exc_res := p3_reg_result_mult;
-                end if;
-            elsif ((exp_3 = 0) and (exp_m = 0)) then
-                exc_res := (others => '0');
-
-            -- handle NaN and infinity
-            elsif ((exp_m = 255) or (exp_3 = 255)) then
+            if ((exp_m = 255) or (exp_3 = 255)) then
                 if (((p3_reg_result_mult(6 downto 0)) /= "0000000") and (exp_m = 255)) then
                     exc_res := p3_reg_result_mult;
                 elsif (((p3_reg_in3(6 downto 0)) /= "0000000") and (exp_3 = 255)) then
@@ -389,6 +394,7 @@ begin
                     alu_r := (others => '0');
             end case;
 
+            -- handle cancellation
             if (alu_r = "0000000000") then
                 cancel_res := (others => '0');
                 cancel_flag := '1';
