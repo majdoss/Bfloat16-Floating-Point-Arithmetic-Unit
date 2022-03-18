@@ -9,6 +9,11 @@ entity bf16_unit is
         in1: in std_logic_vector(15 downto 0) ;
         in2: in std_logic_vector(15 downto 0) ;
         in3: in std_logic_vector(15 downto 0) ;
+        in4: in std_logic_vector(15 downto 0) ;
+        in5: in std_logic_vector(15 downto 0) ;
+        in6: in std_logic_vector(15 downto 0) ;
+        in7: in std_logic_vector(15 downto 0) ;
+        in8: in std_logic_vector(15 downto 0) ;
         funct5: in std_logic_vector(4 downto 0) ;
         result: out std_logic_vector(15 downto 0)
     );
@@ -28,6 +33,24 @@ architecture rtl of bf16_unit is
         );
     end component;
 
+    component bf16_SIMD_MACC is
+        generic (G : integer := 4);
+        port(
+            clk: in std_logic;
+            reset: in std_logic;
+            -- in bf16 format
+            in1: in std_logic_vector(15 downto 0) ;
+            in2: in std_logic_vector(15 downto 0) ;
+            in3: in std_logic_vector(15 downto 0) ;
+            in4: in std_logic_vector(15 downto 0) ;
+            in5: in std_logic_vector(15 downto 0) ;
+            in6: in std_logic_vector(15 downto 0) ;
+            in7: in std_logic_vector(15 downto 0) ;
+            in8: in std_logic_vector(15 downto 0) ;
+            result: out std_logic_vector(15 downto 0)
+        );
+    end component;
+
     component bf16_div
         port(
             clk: in std_logic;
@@ -42,6 +65,7 @@ architecture rtl of bf16_unit is
         port(
             mult_add_sub: in std_logic_vector(15 downto 0) ;
             div: in std_logic_vector(15 downto 0) ;
+            macc: in std_logic_vector(15 downto 0) ;
             funct5: in std_logic_vector(4 downto 0) ;
             result: out std_logic_vector(15 downto 0)
         );
@@ -58,8 +82,21 @@ architecture rtl of bf16_unit is
     -- Connect output of each circuit to multiplexer
     signal mux_mult_add_sub: std_logic_vector(15 downto 0) ;
     signal mux_div: std_logic_vector(15 downto 0) ;
+    signal mux_macc: std_logic_vector(15 downto 0) ;
 
 begin
+    bf16_SIMD: bf16_SIMD_MACC port map (    clk => clk,
+                                            reset => reset,
+                                            in1 => in1,
+                                            in2 => in2,
+                                            in3 => in3,
+                                            in4 => in4,
+                                            in5 => in5,
+                                            in6 => in6,
+                                            in7 => in7,
+                                            in8 => in8,
+                                            result => mux_macc );
+
     fmadd_fmsub: bf16_fmadd_fmsub port map (   clk => clk,
                                                reset => reset,
                                                in1 => in1,
@@ -76,6 +113,7 @@ begin
 
     mux: mux_funct5 port map (   mult_add_sub => mux_mult_add_sub,
                                  div => mux_div,
+                                 macc => mux_macc,
                                  funct5 => p3_funct5,
                                  result => result );
 

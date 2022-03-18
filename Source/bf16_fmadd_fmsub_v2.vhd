@@ -65,9 +65,16 @@ architecture rtl of bf16_fmadd_fmsub is
     signal p5_reg_exc_flag: std_logic ;
     signal p5_reg_s_r: std_logic ;
     signal p5_reg_cancel_flag: std_logic;
+
+    signal p6_reg_exc_flag: std_logic ;
+    signal p6_reg_s_r: std_logic ;
+    signal p6_reg_cancel_flag: std_logic ;
+    signal p6_reg_exc_res: std_logic_vector(15 downto 0) ;
+    signal p6_reg_alu_r: std_logic_vector(17 downto 0) ;
+    signal p6_reg_exp_r: integer ;
     
     -- p6 register
-    signal p6_reg_result: std_logic_vector(15 downto 0) ;
+    signal p7_reg_result: std_logic_vector(15 downto 0) ;
 
     -- STAGE 1
     signal alu_rm: std_logic_vector(15 downto 0); -- multiplication result
@@ -89,11 +96,9 @@ architecture rtl of bf16_fmadd_fmsub is
     signal s_m: std_logic; -- multiplication sign
     signal s_in3: std_logic; -- input 3 sign
     -- STAGE 6
-    signal result_s6: std_logic_vector(15 downto 0) ; -- final result
+    signal result_s7: std_logic_vector(15 downto 0) ; -- final result
     
     attribute use_dsp: string;
-    attribute use_dsp of p1_reg_alu_in1: signal is "yes";
-    attribute use_dsp of p1_reg_alu_in2: signal is "yes";
     attribute use_dsp of p2_reg_alu_rm: signal is "yes";
 begin
     -- pipeline registers
@@ -137,7 +142,12 @@ begin
                 p5_reg_exc_res <= (others => '0');
                 p5_reg_exc_flag <= '1';
                 -- p6 register
-                p6_reg_result <=  (others => '0');
+                p6_reg_exc_flag <= '1';
+                p6_reg_s_r <= '0';
+                p6_reg_cancel_flag <= '0';
+                p6_reg_exc_res <= (others => '0');
+                -- p7 register
+                p7_reg_result <=  (others => '0');
             elsif (rising_edge(clk)) then
                 -- STAGE 1
                 p1_reg_exp_rm <= (exp_1 + exp_2)-127; -- compute multiplication result exponent
@@ -176,7 +186,12 @@ begin
                 p5_reg_exc_res <= p4_reg_exc_res;
                 p5_reg_exc_flag <= p4_reg_exc_flag;
                 -- STAGE 6
-                p6_reg_result <= result_s6;
+                p6_reg_exc_flag <= p5_reg_exc_flag;
+                p6_reg_s_r <= p5_reg_s_r;
+                p6_reg_cancel_flag <= p5_reg_cancel_flag;
+                p6_reg_exc_res <= p5_reg_exc_res;
+                -- STAGE 7
+                p7_reg_result <= result_s7;
             end if;
     end process;
 
@@ -366,12 +381,10 @@ begin
             end if;
     end process;
 
-    -- STAGE 6
-    process (p5_reg_cancel_flag, p5_reg_exp_r, p5_reg_alu_r, p5_reg_exc_res, p5_reg_exc_flag, p5_reg_s_r) is
+    process(p5_reg_alu_r, p5_reg_exp_r) is
         variable p5_alu_r: std_logic_vector(17 downto 0) ;
         variable p5_exp_r: integer ;
         begin
-            -- Normalize mantissa and adjust exponent
             p5_alu_r := p5_reg_alu_r;
             p5_exp_r := p5_reg_exp_r;
 
@@ -427,34 +440,51 @@ begin
                 p5_alu_r := std_logic_vector(shift_left(unsigned(p5_alu_r), 14));
             end if;
 
+            if (reset = '0') then
+                p6_reg_alu_r <= (others => '0');
+                p6_reg_exp_r <= 0;
+            elsif (rising_edge(clk)) then
+                p6_reg_alu_r <= p5_alu_r;
+                p6_reg_exp_r <= p5_exp_r;
+            end if;
+    end process;
+
+    -- STAGE 6
+    process (p6_reg_cancel_flag, p6_reg_exp_r, p6_reg_alu_r, p6_reg_exc_res, p6_reg_exc_flag, p6_reg_s_r) is
+        variable p6_alu_r: std_logic_vector(17 downto 0) ;
+        variable p6_exp_r: integer ;
+        begin
+            p6_alu_r := p6_reg_alu_r;
+            p6_exp_r := p6_reg_exp_r;
+
             -- round to the nearest even
-            if (p5_alu_r(6) = '1') then
-                p5_alu_r(13 downto 7) := std_logic_vector(unsigned(p5_alu_r(13 downto 7))+1);
+            if (p6_alu_r(6) = '1') then
+                p6_alu_r(13 downto 7) := std_logic_vector(unsigned(p6_alu_r(13 downto 7))+1);
                 -- Adjust exponent
-                if (p5_alu_r(13 downto 7) = "0000000") then
-                    p5_exp_r := p5_exp_r + 1;
+                if (p6_alu_r(13 downto 7) = "0000000") then
+                    p6_exp_r := p6_exp_r + 1;
                 end if;
             end if;
             
             -- Generate final result in bfloat 16 format
-            if (p5_reg_exc_flag = '1') then
-                result_s6 <= p5_reg_exc_res;
-            elsif (p5_reg_cancel_flag = '1') then
-                result_s6 <= (others => '0');
-            elsif ((p5_exp_r >= 255) and (p5_reg_s_r = '0')) then
-                result_s6 <= "0111111110000000"; -- overflow, result = +inf
-            elsif ((p5_exp_r >= 255) and (p5_reg_s_r = '1')) then
-                result_s6 <= "1111111110000000"; -- overflow, result = -inf
-            elsif (p5_exp_r <= 0) then
-                result_s6 <= "0000000000000000"; -- underflow, result = zero
+            if (p6_reg_exc_flag = '1') then
+                result_s7 <= p6_reg_exc_res;
+            elsif (p6_reg_cancel_flag = '1') then
+                result_s7 <= (others => '0');
+            elsif ((p6_exp_r >= 255) and (p6_reg_s_r = '0')) then
+                result_s7 <= "0111111110000000"; -- overflow, result = +inf
+            elsif ((p6_exp_r >= 255) and (p6_reg_s_r = '1')) then
+                result_s7 <= "1111111110000000"; -- overflow, result = -inf
+            elsif (p6_exp_r <= 0) then
+                result_s7 <= "0000000000000000"; -- underflow, result = zero
             else
-                result_s6(15) <= p5_reg_s_r;
-                result_s6(14 downto 7) <= std_logic_vector(to_unsigned(p5_exp_r,8));
-                result_s6(6 downto 0) <= p5_alu_r(13 downto 7);
+                result_s7(15) <= p6_reg_s_r;
+                result_s7(14 downto 7) <= std_logic_vector(to_unsigned(p6_exp_r,8));
+                result_s7(6 downto 0) <= p6_alu_r(13 downto 7);
             end if;
     end process;
 
     -- STAGE 7
-    result <= p6_reg_result;
+    result <= p7_reg_result;
 
 end architecture;

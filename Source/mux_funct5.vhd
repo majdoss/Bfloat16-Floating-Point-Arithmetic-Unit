@@ -6,6 +6,7 @@ entity mux_funct5 is
     port(
         mult_add_sub: in std_logic_vector(15 downto 0) ;
         div: in std_logic_vector(15 downto 0) ;
+        macc: in std_logic_vector(15 downto 0) ;
         funct5: in std_logic_vector(4 downto 0) ;
         result: out std_logic_vector(15 downto 0)
     );
@@ -16,5 +17,5 @@ begin
     with funct5 select
         result <= mult_add_sub when "00000"|"00001"|"00010"|"00101"|"00100",
                   div when "00011",
-                  (others => '0') when others;
+                  macc when others;
 end architecture;
