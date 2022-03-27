@@ -112,6 +112,22 @@ architecture rtl of bf16_unit is
     signal p10_funct5: std_logic_vector(4 downto 0) ;
     signal p11_funct5: std_logic_vector(4 downto 0) ;
 
+    signal p1_in1: std_logic_vector(15 downto 0) ;
+    signal p1_in2: std_logic_vector(15 downto 0) ;
+    signal p1_in3: std_logic_vector(15 downto 0) ;
+
+    signal p2_in1: std_logic_vector(15 downto 0) ;
+    signal p2_in2: std_logic_vector(15 downto 0) ;
+    signal p2_in3: std_logic_vector(15 downto 0) ;
+
+    signal p3_in1: std_logic_vector(15 downto 0) ;
+    signal p3_in2: std_logic_vector(15 downto 0) ;
+    signal p3_in3: std_logic_vector(15 downto 0) ;
+
+    signal p4_in1: std_logic_vector(15 downto 0) ;
+    signal p4_in2: std_logic_vector(15 downto 0) ;
+    signal p4_in3: std_logic_vector(15 downto 0) ;
+
     -- Connect output of each circuit to multiplexer
     signal mux_mult_add_sub: std_logic_vector(15 downto 0) ;
     signal mux_div: std_logic_vector(15 downto 0) ;
@@ -142,10 +158,10 @@ begin
                                             in16 => in16,
                                             result => mux_macc );
                                             
-    dec: decoder port map (    in1 => in1,
-                               in2 => in2,
-                               in3 => in3,
-                               funct5 => funct5,
+    dec: decoder port map (    in1 => p4_in1,
+                               in2 => p4_in2,
+                               in3 => p4_in3,
+                               funct5 => p4_funct5,
                                out1 => s_in1,
                                out2 => s_in2,
                                out3 => s_in3 );
@@ -155,7 +171,7 @@ begin
                                                in1 => s_in1,
                                                in2 => s_in2,
                                                in3 => s_in3,
-                                               funct5 => funct5,
+                                               funct5 => p4_funct5,
                                                result => mux_mult_add_sub );
 
     div: bf16_div port map (    clk => clk,
@@ -184,6 +200,19 @@ begin
                 p9_funct5 <= (others => '0');
                 p10_funct5 <= (others => '0');
                 p11_funct5 <= (others => '0');
+
+                p1_in1 <= (others => '0');
+                p1_in2 <= (others => '0');
+                p1_in3 <= (others => '0');
+                p2_in1 <= (others => '0');
+                p2_in2 <= (others => '0');
+                p2_in3 <= (others => '0');
+                p3_in1 <= (others => '0');
+                p3_in2 <= (others => '0');
+                p3_in3 <= (others => '0');
+                p4_in1 <= (others => '0');
+                p4_in2 <= (others => '0');
+                p4_in3 <= (others => '0');
             elsif rising_edge(clk) then
                 p1_funct5 <= funct5;
                 p2_funct5 <= p1_funct5;
@@ -196,6 +225,19 @@ begin
                 p9_funct5 <= p8_funct5;
                 p10_funct5 <= p9_funct5;
                 p11_funct5 <= p10_funct5;
+
+                p1_in1 <= in1;
+                p1_in2 <= in2;
+                p1_in3 <= in3;
+                p2_in1 <= p1_in1;
+                p2_in2 <= p1_in2;
+                p2_in3 <= p1_in3;
+                p3_in1 <= p2_in1;
+                p3_in2 <= p2_in2;
+                p3_in3 <= p2_in3;
+                p4_in1 <= p3_in1;
+                p4_in2 <= p3_in2;
+                p4_in3 <= p3_in3;
             end if;
     end process p_reg;
 end architecture;
