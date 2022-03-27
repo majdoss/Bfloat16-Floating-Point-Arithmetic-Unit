@@ -111,6 +111,8 @@ architecture rtl of bf16_unit is
     signal p9_funct5: std_logic_vector(4 downto 0) ;
     signal p10_funct5: std_logic_vector(4 downto 0) ;
     signal p11_funct5: std_logic_vector(4 downto 0) ;
+    signal p12_funct5: std_logic_vector(4 downto 0) ;
+    signal p13_funct5: std_logic_vector(4 downto 0) ;
 
     signal p1_in1: std_logic_vector(15 downto 0) ;
     signal p1_in2: std_logic_vector(15 downto 0) ;
@@ -127,6 +129,14 @@ architecture rtl of bf16_unit is
     signal p4_in1: std_logic_vector(15 downto 0) ;
     signal p4_in2: std_logic_vector(15 downto 0) ;
     signal p4_in3: std_logic_vector(15 downto 0) ;
+
+    signal p5_in1: std_logic_vector(15 downto 0) ;
+    signal p5_in2: std_logic_vector(15 downto 0) ;
+    signal p5_in3: std_logic_vector(15 downto 0) ;
+
+    signal p6_in1: std_logic_vector(15 downto 0) ;
+    signal p6_in2: std_logic_vector(15 downto 0) ;
+    signal p6_in3: std_logic_vector(15 downto 0) ;
 
     -- Connect output of each circuit to multiplexer
     signal mux_mult_add_sub: std_logic_vector(15 downto 0) ;
@@ -158,10 +168,10 @@ begin
                                             in16 => in16,
                                             result => mux_macc );
                                             
-    dec: decoder port map (    in1 => p4_in1,
-                               in2 => p4_in2,
-                               in3 => p4_in3,
-                               funct5 => p4_funct5,
+    dec: decoder port map (    in1 => p6_in1,
+                               in2 => p6_in2,
+                               in3 => p6_in3,
+                               funct5 => p6_funct5,
                                out1 => s_in1,
                                out2 => s_in2,
                                out3 => s_in3 );
@@ -171,7 +181,7 @@ begin
                                                in1 => s_in1,
                                                in2 => s_in2,
                                                in3 => s_in3,
-                                               funct5 => p4_funct5,
+                                               funct5 => p6_funct5,
                                                result => mux_mult_add_sub );
 
     div: bf16_div port map (    clk => clk,
@@ -183,7 +193,7 @@ begin
     mux: mux_funct5 port map (   mult_add_sub => mux_mult_add_sub,
                                  div => mux_div,
                                  macc => mux_macc,
-                                 funct5 => p11_funct5,
+                                 funct5 => p13_funct5,
                                  result => result );
 
     p_reg: process (clk, reset) is
@@ -200,6 +210,8 @@ begin
                 p9_funct5 <= (others => '0');
                 p10_funct5 <= (others => '0');
                 p11_funct5 <= (others => '0');
+                p12_funct5 <= (others => '0');
+                p13_funct5 <= (others => '0');
 
                 p1_in1 <= (others => '0');
                 p1_in2 <= (others => '0');
@@ -213,6 +225,12 @@ begin
                 p4_in1 <= (others => '0');
                 p4_in2 <= (others => '0');
                 p4_in3 <= (others => '0');
+                p5_in1 <= (others => '0');
+                p5_in2 <= (others => '0');
+                p5_in3 <= (others => '0');
+                p6_in1 <= (others => '0');
+                p6_in2 <= (others => '0');
+                p6_in3 <= (others => '0');
             elsif rising_edge(clk) then
                 p1_funct5 <= funct5;
                 p2_funct5 <= p1_funct5;
@@ -225,6 +243,8 @@ begin
                 p9_funct5 <= p8_funct5;
                 p10_funct5 <= p9_funct5;
                 p11_funct5 <= p10_funct5;
+                p12_funct5 <= p11_funct5;
+                p13_funct5 <= p12_funct5;
 
                 p1_in1 <= in1;
                 p1_in2 <= in2;
@@ -238,6 +258,12 @@ begin
                 p4_in1 <= p3_in1;
                 p4_in2 <= p3_in2;
                 p4_in3 <= p3_in3;
+                p5_in1 <= p4_in1;
+                p5_in2 <= p4_in2;
+                p5_in3 <= p4_in3;
+                p6_in1 <= p5_in1;
+                p6_in2 <= p5_in2;
+                p6_in3 <= p5_in3;
             end if;
     end process p_reg;
 end architecture;

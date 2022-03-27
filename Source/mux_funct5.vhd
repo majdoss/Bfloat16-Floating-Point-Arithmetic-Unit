@@ -17,5 +17,6 @@ begin
     with funct5 select
         result <= mult_add_sub when "00000"|"00001"|"00010"|"00101"|"00100",
                   div when "00011",
-                  macc when others;
+                  macc when "00111",
+                  (others => '0') when others;
 end architecture;
