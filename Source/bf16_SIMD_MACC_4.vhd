@@ -2,8 +2,8 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-entity bf16_SIMD_MACC is
-    generic (G : integer := 5);
+entity bf16_SIMD_MACC_4 is
+    generic (G : integer := 4);
     port(
         clk: in std_logic;
         reset: in std_logic;
@@ -16,21 +16,13 @@ entity bf16_SIMD_MACC is
         in6: in std_logic_vector(15 downto 0) ;
         in7: in std_logic_vector(15 downto 0) ;
         in8: in std_logic_vector(15 downto 0) ;
-        in9: in std_logic_vector(15 downto 0) ;
-        in10: in std_logic_vector(15 downto 0) ;
-        in11: in std_logic_vector(15 downto 0) ;
-        in12: in std_logic_vector(15 downto 0) ;
-        in13: in std_logic_vector(15 downto 0) ;
-        in14: in std_logic_vector(15 downto 0) ;
-        in15: in std_logic_vector(15 downto 0) ;
-        in16: in std_logic_vector(15 downto 0) ;
         result: out std_logic_vector(15 downto 0)
     );
-end bf16_SIMD_MACC;
+end bf16_SIMD_MACC_4;
 
-architecture MACC_SIMD of bf16_SIMD_MACC is
+architecture MACC_SIMD of bf16_SIMD_MACC_4 is
     component bf16_add_branch is
-        generic (G : integer := 5);
+        generic (G : integer := 4);
         port(
             clk: in std_logic;
             reset: in std_logic;
@@ -59,7 +51,7 @@ architecture MACC_SIMD of bf16_SIMD_MACC is
     end component;
 
     component bf16_mult_leaf is
-        generic (G : integer := 5);
+        generic (G : integer := 4);
         port(
             clk: in std_logic;
             reset: in std_logic;
@@ -74,7 +66,7 @@ architecture MACC_SIMD of bf16_SIMD_MACC is
     end component;
 
     component bf16_add_root is
-        generic (G : integer := 5);
+        generic (G : integer := 4);
         port(
             clk: in std_logic;
             reset: in std_logic;
@@ -122,30 +114,6 @@ architecture MACC_SIMD of bf16_SIMD_MACC is
     signal m4_exc_flag: std_logic;
     signal m4_err_code: std_logic;
 
-    signal m5_alu_m: std_logic_vector(G+15 downto 0);
-    signal m5_exp_m: integer;
-    signal m5_s_m: std_logic;
-    signal m5_exc_flag: std_logic;
-    signal m5_err_code: std_logic;
-
-    signal m6_alu_m: std_logic_vector(G+15 downto 0);
-    signal m6_exp_m: integer;
-    signal m6_s_m: std_logic;
-    signal m6_exc_flag: std_logic;
-    signal m6_err_code: std_logic;
-
-    signal m7_alu_m: std_logic_vector(G+15 downto 0);
-    signal m7_exp_m: integer;
-    signal m7_s_m: std_logic;
-    signal m7_exc_flag: std_logic;
-    signal m7_err_code: std_logic;
-
-    signal m8_alu_m: std_logic_vector(G+15 downto 0);
-    signal m8_exp_m: integer;
-    signal m8_s_m: std_logic;
-    signal m8_exc_flag: std_logic;
-    signal m8_err_code: std_logic;
-
     signal a1_alu_r: std_logic_vector(G+15 downto 0);
     signal a1_exp_r: integer;
     signal a1_s_r: std_logic;
@@ -157,30 +125,6 @@ architecture MACC_SIMD of bf16_SIMD_MACC is
     signal a2_s_r: std_logic;
     signal a2_exc_flag: std_logic;
     signal a2_err_code: std_logic;
-
-    signal a3_alu_r: std_logic_vector(G+15 downto 0);
-    signal a3_exp_r: integer;
-    signal a3_s_r: std_logic;
-    signal a3_exc_flag: std_logic;
-    signal a3_err_code: std_logic;
-
-    signal a4_alu_r: std_logic_vector(G+15 downto 0);
-    signal a4_exp_r: integer;
-    signal a4_s_r: std_logic;
-    signal a4_exc_flag: std_logic;
-    signal a4_err_code: std_logic;
-
-    signal a5_alu_r: std_logic_vector(G+15 downto 0);
-    signal a5_exp_r: integer;
-    signal a5_s_r: std_logic;
-    signal a5_exc_flag: std_logic;
-    signal a5_err_code: std_logic;
-
-    signal a6_alu_r: std_logic_vector(G+15 downto 0);
-    signal a6_exp_r: integer;
-    signal a6_s_r: std_logic;
-    signal a6_exc_flag: std_logic;
-    signal a6_err_code: std_logic;
 
 begin
     MULT1: bf16_mult_leaf port map (clk => clk, 
@@ -223,46 +167,6 @@ begin
                                     out_exc_flag => m4_exc_flag,
                                     out_err_code => m4_err_code );
 
-    MULT5: bf16_mult_leaf port map (clk => clk, 
-                                    reset => reset, 
-                                    in1 => in9, 
-                                    in2 => in10,
-                                    out_alu_m => m5_alu_m,
-                                    out_exp_m => m5_exp_m,
-                                    out_s_m => m5_s_m, 
-                                    out_exc_flag => m5_exc_flag,
-                                    out_err_code => m5_err_code );
-
-    MULT6: bf16_mult_leaf port map (clk => clk, 
-                                    reset => reset, 
-                                    in1 => in11, 
-                                    in2 => in12,
-                                    out_alu_m => m6_alu_m,
-                                    out_exp_m => m6_exp_m,
-                                    out_s_m => m6_s_m, 
-                                    out_exc_flag => m6_exc_flag,
-                                    out_err_code => m6_err_code );
-
-    MULT7: bf16_mult_leaf port map (clk => clk, 
-                                    reset => reset, 
-                                    in1 => in13, 
-                                    in2 => in14,
-                                    out_alu_m => m7_alu_m,
-                                    out_exp_m => m7_exp_m,
-                                    out_s_m => m7_s_m, 
-                                    out_exc_flag => m7_exc_flag,
-                                    out_err_code => m7_err_code );
-
-    MULT8: bf16_mult_leaf port map (clk => clk, 
-                                    reset => reset, 
-                                    in1 => in15, 
-                                    in2 => in16,
-                                    out_alu_m => m8_alu_m,
-                                    out_exp_m => m8_exp_m,
-                                    out_s_m => m8_s_m, 
-                                    out_exc_flag => m8_exc_flag,
-                                    out_err_code => m8_err_code );
-
     ADD1: bf16_add_branch port map (clk => clk, 
                                     reset => reset,
                                     in1 => m1_alu_m, 
@@ -299,43 +203,7 @@ begin
                                     out_exc_flag => a2_exc_flag,
                                     out_err_code => a2_err_code );
 
-    ADD3: bf16_add_branch port map (clk => clk, 
-                                    reset => reset,
-                                    in1 => m5_alu_m, 
-                                    exp_1 => m5_exp_m,
-                                    s_in1 => m5_s_m,
-                                    exc_flag_1 => m5_exc_flag,
-                                    err_code_1 => m5_err_code,
-                                    in2 => m6_alu_m, 
-                                    exp_2 => m6_exp_m,
-                                    s_in2 => m6_s_m,
-                                    exc_flag_2 => m6_exc_flag,
-                                    err_code_2 => m6_err_code,
-                                    out_alu_r => a3_alu_r,
-                                    out_exp_r => a3_exp_r,
-                                    out_s_r => a3_s_r,
-                                    out_exc_flag => a3_exc_flag,
-                                    out_err_code => a3_err_code );
-
-    ADD4: bf16_add_branch port map (clk => clk, 
-                                    reset => reset,
-                                    in1 => m7_alu_m, 
-                                    exp_1 => m7_exp_m,
-                                    s_in1 => m7_s_m,
-                                    exc_flag_1 => m7_exc_flag,
-                                    err_code_1 => m7_err_code,
-                                    in2 => m8_alu_m, 
-                                    exp_2 => m8_exp_m,
-                                    s_in2 => m8_s_m,
-                                    exc_flag_2 => m8_exc_flag,
-                                    err_code_2 => m8_err_code,
-                                    out_alu_r => a4_alu_r,
-                                    out_exp_r => a4_exp_r,
-                                    out_s_r => a4_s_r,
-                                    out_exc_flag => a4_exc_flag,
-                                    out_err_code => a4_err_code );
-
-    ADD5: bf16_add_branch port map (clk => clk, 
+    ADD3: bf16_add_root port map (  clk => clk, 
                                     reset => reset,
                                     in1 => a1_alu_r, 
                                     exp_1 => a1_exp_r,
@@ -347,42 +215,7 @@ begin
                                     s_in2 => a2_s_r,
                                     exc_flag_2 => a2_exc_flag,
                                     err_code_2 => a2_err_code,
-                                    out_alu_r => a5_alu_r,
-                                    out_exp_r => a5_exp_r,
-                                    out_s_r => a5_s_r,
-                                    out_exc_flag => a5_exc_flag,
-                                    out_err_code => a5_err_code );
-
-    ADD6: bf16_add_branch port map (clk => clk, 
-                                    reset => reset,
-                                    in1 => a3_alu_r, 
-                                    exp_1 => a3_exp_r,
-                                    s_in1 => a3_s_r,
-                                    exc_flag_1 => a3_exc_flag,
-                                    err_code_1 => a3_err_code,
-                                    in2 => a4_alu_r, 
-                                    exp_2 => a4_exp_r,
-                                    s_in2 => a4_s_r,
-                                    exc_flag_2 => a4_exc_flag,
-                                    err_code_2 => a4_err_code,
-                                    out_alu_r => a6_alu_r,
-                                    out_exp_r => a6_exp_r,
-                                    out_s_r => a6_s_r,
-                                    out_exc_flag => a6_exc_flag,
-                                    out_err_code => a6_err_code );
-
-    ADD7: bf16_add_root port map (  clk => clk, 
-                                    reset => reset,
-                                    in1 => a5_alu_r, 
-                                    exp_1 => a5_exp_r,
-                                    s_in1 => a5_s_r,
-                                    exc_flag_1 => a5_exc_flag,
-                                    err_code_1 => a5_err_code,
-                                    in2 => a6_alu_r, 
-                                    exp_2 => a6_exp_r,
-                                    s_in2 => a6_s_r,
-                                    exc_flag_2 => a6_exc_flag,
-                                    err_code_2 => a6_err_code,
                                     result => result );
 
 end architecture;   
+

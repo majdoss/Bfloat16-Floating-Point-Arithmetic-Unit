@@ -3,7 +3,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity bf16_add_root is
-    generic (G : integer := 4);
+    generic (G : integer := 5);
     port(
         clk: in std_logic;
         reset: in std_logic;
@@ -205,7 +205,25 @@ begin
             v_alu_r := p3_reg_alu_r;
             v_exp_r := p3_reg_exp_r;
 
-            if (v_alu_r(18) = '1') then
+            --for i in G+14 downto 0 loop
+                --v_exp_r := v_exp_r + (i-14);
+                --if (i > 14) then
+                    --if (v_alu_r(i) = '1') then
+                        --v_alu_r := std_logic_vector(shift_right(unsigned(v_alu_r), (i-14)));
+                        --exit;
+                    --end if;
+                --else
+                    --if (v_alu_r(i) = '1') then
+                        --v_alu_r := std_logic_vector(shift_left(unsigned(v_alu_r), -(i-14)));
+                        --exit;
+                    --end if;
+                --end if;
+            --end loop;
+
+            if (v_alu_r(19) = '1') then
+                v_exp_r := v_exp_r + 5;
+                v_alu_r := std_logic_vector(shift_right(unsigned(v_alu_r), 5));
+            elsif (v_alu_r(18) = '1') then
                 v_exp_r := v_exp_r + 4;
                 v_alu_r := std_logic_vector(shift_right(unsigned(v_alu_r), 4));
             elsif (v_alu_r(17) = '1') then

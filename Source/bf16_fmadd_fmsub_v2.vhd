@@ -348,7 +348,7 @@ begin
         variable cancel_flag: std_logic; -- cancellation flag
         begin
             case p4_reg_funct5 is 
-                when "00100"|"00000" => -- for performing fused multiply add or regular add
+                when "00100"|"00000"|"00010" => -- for performing fused multiply add or regular add
                     alu_r := std_logic_vector(signed(p4_reg_alu_m) + signed(p4_reg_alu_in3));
                 when "00101"|"00001" => -- for performing fused multiply sub or regular sub
                     alu_r := std_logic_vector(signed(p4_reg_alu_m) - signed(p4_reg_alu_in3));
