@@ -381,7 +381,7 @@ begin
             end if;
     end process;
 
-    process(p5_reg_alu_r, p5_reg_exp_r) is
+    process(p5_reg_alu_r, p5_reg_exp_r, clk, reset) is
         variable p5_alu_r: std_logic_vector(17 downto 0) ;
         variable p5_exp_r: integer ;
         begin

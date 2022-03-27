@@ -80,8 +80,8 @@ begin
     end process;
 
     process (exp_1, exp_2, in1, in2) is
-        variable exp_s1: integer range 0 to 255; 
-        variable exp_s2: integer range 0 to 255;
+        variable exp_s1: integer ; 
+        variable exp_s2: integer ;
         -- these are used to store the "shift value" in case we need to shift mantissas for allignment
         begin
             if ((exp_1 - exp_2) < 0) then

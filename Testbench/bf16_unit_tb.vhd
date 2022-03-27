@@ -13,7 +13,19 @@ architecture driver of bf16_unit_tb is
         in1: in std_logic_vector(15 downto 0) ;
         in2: in std_logic_vector(15 downto 0) ;
         in3: in std_logic_vector(15 downto 0) ;
-        
+        in4: in std_logic_vector(15 downto 0) ;
+        in5: in std_logic_vector(15 downto 0) ;
+        in6: in std_logic_vector(15 downto 0) ;
+        in7: in std_logic_vector(15 downto 0) ;
+        in8: in std_logic_vector(15 downto 0) ;
+        in9: in std_logic_vector(15 downto 0) ;
+        in10: in std_logic_vector(15 downto 0) ;
+        in11: in std_logic_vector(15 downto 0) ;
+        in12: in std_logic_vector(15 downto 0) ;
+        in13: in std_logic_vector(15 downto 0) ;
+        in14: in std_logic_vector(15 downto 0) ;
+        in15: in std_logic_vector(15 downto 0) ;
+        in16: in std_logic_vector(15 downto 0) ;
         funct5: in std_logic_vector(4 downto 0) ;
         result: out std_logic_vector(15 downto 0)
     );
@@ -24,8 +36,21 @@ signal tb_reset: std_logic:= '0' ;
 signal tb_in1: std_logic_vector(15 downto 0) := (others =>'0') ;
 signal tb_in2: std_logic_vector(15 downto 0) := (others =>'0') ;
 signal tb_in3: std_logic_vector(15 downto 0) := (others =>'0') ;
+signal tb_in4: std_logic_vector(15 downto 0) := (others =>'0') ;
+signal tb_in5: std_logic_vector(15 downto 0) := (others =>'0') ;
+signal tb_in6: std_logic_vector(15 downto 0) := (others =>'0') ;
+signal tb_in7: std_logic_vector(15 downto 0) := (others =>'0') ;
+signal tb_in8: std_logic_vector(15 downto 0) := (others =>'0') ;
+signal tb_in9: std_logic_vector(15 downto 0) := (others =>'0') ;
+signal tb_in10: std_logic_vector(15 downto 0) := (others =>'0') ;
+signal tb_in11: std_logic_vector(15 downto 0) := (others =>'0') ;
+signal tb_in12: std_logic_vector(15 downto 0) := (others =>'0') ;
+signal tb_in13: std_logic_vector(15 downto 0) := (others =>'0') ;
+signal tb_in14: std_logic_vector(15 downto 0) := (others =>'0') ;
+signal tb_in15: std_logic_vector(15 downto 0) := (others =>'0') ;
+signal tb_in16: std_logic_vector(15 downto 0) := (others =>'0') ;
 
-signal tb_funct5: std_logic_vector(4 downto 0) := "00000";
+signal tb_funct5: std_logic_vector(4 downto 0) := "00011";
 signal tb_result: std_logic_vector(15 downto 0);
 
 constant ClockFrequency: integer := 100e6; --100MHz
@@ -37,7 +62,19 @@ begin
 				                 in1 => tb_in1,
                         	     in2 => tb_in2,
                                  in3 => tb_in3,
-                               
+                                 in4 => tb_in4,
+                        	     in5 => tb_in5,
+                                 in6 => tb_in6,
+                                 in7 => tb_in7,
+                        	     in8 => tb_in8,
+                                 in9 => tb_in9,
+                                 in10 => tb_in10,
+                        	     in11 => tb_in11,
+                                 in12 => tb_in12,
+                                 in13 => tb_in13,
+                        	     in14 => tb_in14,
+                                 in15 => tb_in15,
+                                 in16 => tb_in16,
 				                 funct5 => tb_funct5,
                              	 result => tb_result );
 
@@ -52,7 +89,7 @@ end process p1;
     tb_reset <= '1' after 20ns;
     tb_funct5 <= "00001" after 230ns,
                  "00010" after 430ns,
-                 "00101" after 630ns,
+                 "00011" after 630ns,
                  "00100" after 830ns;
     
     tb_in1 <= "0100010001011000" after 30ns,   --   1.1011000*(2^9)
