@@ -77,7 +77,6 @@ architecture rtl of bf16_fmadd_fmsub is
     signal p7_reg_result: std_logic_vector(15 downto 0) ;
 
     -- STAGE 1
-    signal alu_rm: std_logic_vector(15 downto 0); -- multiplication result
     signal exp_1: integer ; -- exponent 1
     signal exp_2: integer ; -- exponent 2
     signal alu_in1: std_logic_vector(7 downto 0) ; -- operand 1
