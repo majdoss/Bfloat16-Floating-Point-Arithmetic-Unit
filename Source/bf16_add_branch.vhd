@@ -17,7 +17,7 @@ entity bf16_add_branch is
 
         -- in2 parameters
         in2: in std_logic_vector(G+15 downto 0) ;
-        exp_2: integer;
+        exp_2: in integer;
         s_in2: in std_logic;
         exc_flag_2: in std_logic;
         err_code_2: in std_logic;
